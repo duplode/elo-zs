@@ -1,9 +1,9 @@
 {-# LANGUAGE LambdaCase, OverloadedStrings, TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
-module Elo where
+module Analysis where
 
 import Types
-import Elo.Core
+import Engine
 
 import qualified Data.Map.Strict as Map
 import Data.Ord

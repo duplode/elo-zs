@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase, ScopedTypeVariables #-}
--- | 
--- Module: Elo.Core
+-- |
+-- Module: Engine
 --
 -- The core Elo algorithm.
 --
@@ -8,7 +8,7 @@
 -- discussion on Glickman, Mark E.,
 -- [/A Comprehensive Guide to Chess Ratings/](http://www.glicko.net/research/acjpaper.pdf)
 -- (1995).
-module Elo.Core
+module Engine
     ( allRatings
     , isProvisional
     ) where
@@ -53,7 +53,7 @@ toFaceOffs xs = concat $ xs =>> \(y :| ys) -> faceOff y <$> ys
 -- | Difference between expected and actual scores for a match. Positive if
 -- the score was higher than what was expected.
 scoreDiscrepancy
-    :: Double  -- ^ Difference between the ratings before the match. 
+    :: Double  -- ^ Difference between the ratings before the match.
     -> WDL     -- ^ Match outcome.
     -> Double  -- ^ Rating change.
 scoreDiscrepancy gap otc = wdlScore otc - expectedScore
@@ -74,7 +74,7 @@ isProvisional :: PipData -> Bool
 isProvisional rtg = entries rtg < 5
 
 -- | The core rating update engine.
-updateRatings 
+updateRatings
     :: forall p. Ord p
     => AtRace (Map p PipData)  -- ^ Ratings at the previous race.
     -> [FaceOff p]             -- ^ Matches of the current event.
@@ -109,10 +109,10 @@ updateRatings (AtRace ri rtgs) xys =
     provisionalCheck :: Maybe PipData -> Bool
     provisionalCheck = maybe True isProvisional
     
-    -- | Calculates individual rating changes from a list of matches. 
+    -- | Calculates individual rating changes from a list of matches.
     toDeltas :: [FaceOff p] -> [(p, Double)]
     toDeltas = concatMap $ \xy ->
-        let  -- In principle, these lookups might be performed once per 
+        let  -- In principle, these lookups might be performed once per
              -- player, rather than twice per match.
             px = Map.lookup (player xy) rtgs
             py = Map.lookup (opponent xy) rtgs

@@ -18,8 +18,8 @@ extra-source-files:  CHANGELOG.md
 
 executable elo-zs
   main-is:             Main.hs
-  other-modules:       Elo
-                     , Elo.Core
+  other-modules:       Analysis
+                     , Engine
                      , Types
                      , DataPreparation
                      , Tabular

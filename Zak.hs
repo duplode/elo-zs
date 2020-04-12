@@ -6,8 +6,8 @@
 -- display them.
 module Zak where
 
-import Elo
-import Elo.Core
+import Analysis
+import Engine
 import Types
 import DataPreparation
 import Tabular
