@@ -21,7 +21,7 @@ executable elo-zs
   other-modules:       Analysis
                      , Engine
                      , Types
-                     , DataPreparation
+                     , Tidying
                      , Tabular
                      , Zak
                      , Zak.Misc

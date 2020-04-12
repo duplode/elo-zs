@@ -1,20 +1,20 @@
 {-# LANGUAGE LambdaCase, OverloadedStrings #-}
--- | 
+-- |
 -- Module: Zak.Results
 --
 -- Race results from zak.stunts.hu, used as sample data.
-module Zak.Results 
+module Zak.Results
     ( testData
     ) where
 
 import Types
-import DataPreparation
+import Tidying
 
 import qualified Data.List.NonEmpty as NE
 import Data.Bool
 
 -- | Preliminary result list for a race, subject to preprocessing.
-data ScratchResults 
+data ScratchResults
     = NoDraws [PipId]       -- ^ If there were no draws, the results of each
                             -- racer can be left implied by their order.
     | WithDraws [Standing]  -- ^ If there were draws, explicitly specifying
@@ -79,7 +79,7 @@ ghostList =
     , "Zweigelt"
 
     , "Miro"
-    , "Mark Nailwood (ghost)"           
+    , "Mark Nailwood (ghost)"
     , "Geovani da Silva (ghost)"
     , "oh yeah"
     , "Xianthi"
@@ -169,7 +169,7 @@ crudeData =
 -- which actually entered the race. Note that Shoegazing Leo raced under the
 -- name Leo Ramone before c162.
 
-c001 = NoDraws   
+c001 = NoDraws
         [ "Fdzierva"
         , "Ben Snel"
         , "Zak McKracken"

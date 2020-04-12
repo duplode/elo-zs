@@ -9,7 +9,7 @@ module Zak where
 import Analysis
 import Engine
 import Types
-import DataPreparation
+import Tidying
 import Tabular
 import Zak.Misc
 import Zak.Results

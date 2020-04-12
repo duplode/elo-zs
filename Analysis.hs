@@ -4,28 +4,15 @@ module Analysis where
 
 import Types
 import Engine
+import Tidying
 
 import qualified Data.Map.Strict as Map
 import Data.Ord
 import Data.List
-import Data.Default
 import qualified Control.Foldl as L
 import Data.Profunctor
 import Data.Maybe
 import Control.Comonad
-
-data  PostProcessOptions = PPOpts
-    { activityCut :: Maybe Int
-    , selectedRace :: Maybe Int
-    , excludeProvisional :: Bool
-    }
-
-instance Default PostProcessOptions where
-    def = PPOpts
-        { activityCut = Nothing
-        , selectedRace = Nothing
-        , excludeProvisional = False
-        }
 
 highestPerPip :: [AtRace Ratings] -> Map.Map PipId (AtRace Double)
 highestPerPip =
