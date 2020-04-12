@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, ScopedTypeVariables #-}
 -- | 
 -- Module: Elo.Core
 --
@@ -15,6 +15,7 @@ module Elo.Core
 import Types
 
 import qualified Data.Map.Strict as Map
+import Data.Map.Strict (Map)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.List
@@ -22,27 +23,12 @@ import Data.Bool
 import Data.Ord
 import Control.Comonad
 
--- | Possible outcomes of a match between two players.
-data WDL = Loss | Draw | Win
-    deriving (Eq, Ord, Show, Enum, Bounded)
-
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
 wdlScore = \case
     Loss -> 0
     Draw -> 0.5
     Win -> 1
-
--- | Record of a match between two players.
-data FaceOff p = FaceOff
-    { player :: !p     -- ^ A player.
-    , opponent :: !p   -- ^ Their opponent.
-    , outcome :: !WDL  -- ^ The outcome, from the 'player''s point of view.
-    }
-    deriving (Eq, Ord, Show)
-
--- | Concrete match record type.
-type FaceOff' = FaceOff PipId
 
 -- | Converts two player results into a match between the players.
 --
@@ -88,9 +74,10 @@ isProvisional rtg = entries rtg < 5
 
 -- | The core rating update engine.
 updateRatings 
-    :: AtRace Ratings  -- ^ Ratings at the previous race.
-    -> [FaceOff']         -- ^ Matches of the current event.
-    -> AtRace Ratings  -- ^ Updated ratings at the current race.
+    :: forall p. Ord p
+    => AtRace (Map p PipData)  -- ^ Ratings at the previous race.
+    -> [FaceOff p]             -- ^ Matches of the current event.
+    -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
 updateRatings (AtRace ri rtgs) xys =
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
@@ -122,7 +109,7 @@ updateRatings (AtRace ri rtgs) xys =
     provisionalCheck = maybe True isProvisional
     
     -- | Calculates individual rating changes from a list of matches. 
-    toDeltas :: [FaceOff'] -> [(PipId, Double)]
+    toDeltas :: [FaceOff p] -> [(p, Double)]
     toDeltas = concatMap $ \xy ->
         let  -- In principle, these lookups might be performed once per 
              -- player, rather than twice per match.
@@ -140,7 +127,7 @@ updateRatings (AtRace ri rtgs) xys =
     --
     -- The last event index is updated here, as that should only be done for
     -- players who took part in the current event.
-    applyChange :: (PipId, Double) -> Ratings -> Ratings
+    applyChange :: (p, Double) -> Map p PipData -> Map p PipData
     applyChange (p, d) = flip Map.alter p $ Just . \case
         Nothing -> PipData (defRating + d) 0 ri'
         Just (PipData rtg n _) -> PipData (rtg + d) n ri'
@@ -150,14 +137,15 @@ updateRatings (AtRace ri rtgs) xys =
     --
     -- Performed in a separate step, so that the count is only increased once
     -- per player who took part in the current event.
-    updateCount :: Ratings -> Ratings
+    updateCount :: Map p PipData -> Map p PipData
     updateCount = fmap (\(PipData rtg n i) ->
         PipData rtg (bool id (+ 1) (i == ri') n) i)
 
 -- | Calculates ratings for all players after each event.
 allRatings
-    :: [NE.NonEmpty Standing]  -- ^ Event results.
-    -> [AtRace Ratings]        -- ^ Ratings after each event.
+    :: Ord p
+    => [NE.NonEmpty (Result p Int)]  -- ^ Event results.
+    -> [AtRace (Map p PipData)]      -- ^ Ratings after each event.
 allRatings = scanl'
     (\ar xs -> updateRatings ar (toFaceOffs xs))
     (AtRace 0 Map.empty)

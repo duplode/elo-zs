@@ -3,13 +3,19 @@
 -- Module: Types
 --
 -- Shared domain types.
-module Types
-    ( PipId
+module Types (
+    -- * Elementary synonyms
+      PipId
+    , RaceIx
+    -- * Core algorithm types
+    , PipData(..)
     , Ratings
     , Result(..)
-    , PipData(..)
     , Standing
-    , RaceIx
+    , WDL(..)
+    , FaceOff(..)
+    , FaceOff'
+    -- * Race index tagging
     , AtRace(..)
     , raceIx
     , fromAtRace
@@ -20,6 +26,12 @@ import qualified Data.Text as T
 import qualified Data.Map.Strict as Map
 import Control.Comonad
 
+-- | Concrete identifier for the racers/players being ranked.
+type PipId = T.Text
+
+-- | Concrete index for locating and identifying races.
+type RaceIx = Int
+
 -- | Player data which is updated through the Elo ranking computation.
 data PipData = PipData
     { rating :: !Double     -- ^ Elo rating.
@@ -28,11 +40,14 @@ data PipData = PipData
     }
     deriving (Eq, Ord, Show)
 
+-- | Key-value store of player data for retrieval and update.
+type Ratings = Map.Map PipId PipData
+
 -- | Result attained by a player in an event.
 --
 -- This type is necessary to handle events with more than two players, such as
 -- races.
-data Result p a = Result 
+data Result p a = Result
     { pipsqueakTag :: !p  -- ^ Player identifier.
                           -- "pipsqueak" means racer in the Stunts community
                           -- jargon.
@@ -40,17 +55,23 @@ data Result p a = Result
     }
     deriving (Eq, Ord, Show)
 
--- | Concrete identifier for the racers/players being ranked.
-type PipId = T.Text
-
--- | Key-value store of player data for retrieval and update.
-type Ratings = Map.Map PipId PipData
-
 -- | Concrete race result.
 type Standing = Result PipId Int
 
--- | Concrete index for locating and identifying races.
-type RaceIx = Int
+-- | Possible outcomes of a match between two players.
+data WDL = Loss | Draw | Win
+    deriving (Eq, Ord, Show, Enum, Bounded)
+
+-- | Record of a match between two players.
+data FaceOff p = FaceOff
+    { player :: !p     -- ^ A player.
+    , opponent :: !p   -- ^ Their opponent.
+    , outcome :: !WDL  -- ^ The outcome, from the 'player''s point of view.
+    }
+    deriving (Eq, Ord, Show)
+
+-- | Concrete match record type.
+type FaceOff' = FaceOff PipId
 
 -- | A value tagged with a race index. Uses include race identification and
 -- application of player activity windows.
