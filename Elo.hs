@@ -46,34 +46,41 @@ arrangeTable mkRhs chs mkVals as = Tab.Table
     (Tab.Group Tab.SingleLine (Tab.Header <$> chs))
     (mkVals <$> as)
 
-highestPerPip :: [(RaceIx, Ratings)] -> Map.Map PipId (RaceIx, Double)
+highestPerPip :: [AtRace Ratings] -> Map.Map PipId (AtRace Double)
 highestPerPip =
-    foldl' (\hgs (ri, rtgs) ->
-        let rtgs' = (ri,) . rating <$> rtgs
-        in Map.unionWith (\(ri, x) (rj, y)
-            -> if y > x then (rj, y) else (ri, x)) hgs rtgs') Map.empty
+    foldl' (\highs (AtRace ri rtgs) ->
+        let rtgs' = AtRace ri . rating <$> rtgs  -- Lone, or left adjoint.
+        in Map.unionWith higher highs rtgs') Map.empty
+    where
+    higher ari@(AtRace _ x) arj@(AtRace _ y) = if y > x then ari else arj
 
 --demoHighest = sortBy (comparing (Down . snd . snd)) $ Map.toList $ highestPerPip (allRatings (testData def))
 demoHighest :: Tab.Table String String String
-demoHighest = highestPerPip 
+demoHighest = highestPerPip
         (distillRatings def {excludeProvisional=True}
             <$> allRatings (testData def))
-    & Map.toList & sortBy (comparing (Down . snd . snd)) 
+    & Map.toList & sortBy (comparing (Down . extract . snd))
     & arrangeTable
         (fmap show . zipWith const [1..])
         ["Racer", "Race", "Rating"]
-        (\(p, (ri, rtg)) -> [T.unpack p, toZakLabel ri, show rtg])
+        (\(p, AtRace ri rtg) -> [T.unpack p, toZakLabel ri, show rtg])
 
-foldRatingsPerRace :: L.Fold PipData b -> [(Int, Ratings)] -> [(Int, b)]
-foldRatingsPerRace alg = fmap
-    $ second (L.fold alg)
-    . (extend (\(ri, rtgs) -> Map.filter (\rtg -> lastRace rtg == ri) rtgs))
-    -- . (\(ri, rtgs) -> (ri, Map.filter (\rtg -> lastRace rtg == ri) rtgs))
+-- | Folds collections of ratings-at-races while only using the ratings of
+-- racers who took part in the current race.
+foldRatingsPerRace :: L.Fold PipData b -> [AtRace Ratings] -> [AtRace b]
+foldRatingsPerRace alg = fmap $ extend (L.fold alg . currentlyActivePipsOnly)
+    where
+    currentlyActivePipsOnly (AtRace ri rtgs) =
+        Map.filter (\rtg -> lastRace rtg == ri) rtgs
 
-accumulatedRatings :: [(Int, Ratings)] -> [(Int, Double)]
+-- | Acumulated ratings per race, including only racers who took part in each
+-- race. A race strength metric.
+accumulatedRatings :: [AtRace Ratings] -> [AtRace Double]
 accumulatedRatings = foldRatingsPerRace (lmap rating L.sum)
 
-meanRatingPerRace :: [(Int, Ratings)] -> [(Int, Double)]
+-- | Mean ratings per race, including only racers who took part in each race
+-- A race strength metric.
+meanRatingPerRace :: [AtRace Ratings] -> [AtRace Double]
 meanRatingPerRace = foldRatingsPerRace (lmap rating L.mean)
 
 -- demoAccumulated = sortBy (comparing (Down . snd)) $ accumulatedRatings (allRatings (testData def))
@@ -81,11 +88,11 @@ demoAccumulated :: Tab.Table String String String
 demoAccumulated = accumulatedRatings
         (distillRatings def {excludeProvisional=True}
             <$> allRatings (testData def))
-    & sortBy (comparing (Down . snd))
+    & sortBy (comparing (Down . extract))
     & arrangeTable
-        (fmap (toZakLabel . fst))
+        (fmap (toZakLabel . raceIx))
         ["Accumulated Rating"]
-        ((:[]) . show . snd)
+        ((:[]) . show . extract)
 
 --demoMean = meanRatingPerRace (allRatings (testData def))
 demoMean :: Tab.Table String String String
@@ -93,15 +100,20 @@ demoMean = meanRatingPerRace
         (distillRatings def {excludeProvisional=True}
             <$> allRatings (testData def))
     & arrangeTable
-        (fmap (toZakLabel . fst))
+        (fmap (toZakLabel . raceIx))
         ["Mean Rating"]
-        ((:[]) . show . snd)
+        ((:[]) . show . extract)
 
-windowLeaders :: [(Int, Ratings)] -> [(Int, Maybe (PipId, Double))]
-windowLeaders = fmap 
-    $ second (fmap (second rating)
-        . L.fold (L.maximumBy (comparing (rating . snd))) . Map.toList)
-    . (\(ri, rtgs) -> (ri, Map.filter (\rtg -> ri - lastRace rtg < 4) rtgs))
+-- | Highest rating among racers active within the last three races. A
+-- current form metric.
+windowLeaders :: [AtRace Ratings] -> [AtRace (Maybe (PipId, Double))]
+windowLeaders = fmap
+    $ extend (L.fold (L.maximumBy (comparing extract))
+        . Map.toList . fmap rating . recentlyActivePipsOnly)
+    where
+    recentlyActivePipsOnly (AtRace ri rtgs) =
+        Map.filter (\rtg -> ri - lastRace rtg <= 3) rtgs
+
 
 --demoWindowLeaders = windowLeaders (allRatings (testData def))
 demoWindowLeaders :: Tab.Table String String String
@@ -109,15 +121,16 @@ demoWindowLeaders = windowLeaders
         (distillRatings def {activityCut=Just 12, excludeProvisional=True}
             <$> allRatings (testData def))
     & arrangeTable
-        (fmap (toZakLabel . fst))
+        (fmap (toZakLabel . raceIx))
         ["Racer", "Rating"]
-        (maybe [] (\(p, x) -> [T.unpack p, show x]) . snd)
+        (maybe ["N/A", "N/A"] (\(p, x) -> [T.unpack p, show x]) . extract)
 
--- This one doesn't filter.
-foldRatingsPerSnapshot :: L.Fold PipData b -> [(Int, Ratings)] -> [(Int, b)]
-foldRatingsPerSnapshot alg = fmap (second (L.fold alg))
+-- | Folds collections of ratings-at-races, with no filtering.
+foldRatingsPerSnapshot :: L.Fold PipData b -> [AtRace Ratings] -> [AtRace b]
+foldRatingsPerSnapshot alg = fmap (fmap @AtRace (L.fold alg))
 
-meanRatingPerSnapshot :: [(Int, Ratings)] -> [(Int, Double)]
+-- | Mean ratings per race, including all racers ever. A meta-metric.
+meanRatingPerSnapshot :: [AtRace Ratings] -> [AtRace Double]
 meanRatingPerSnapshot = foldRatingsPerSnapshot (lmap rating L.mean)
 
 -- demoMeanSnap = meanRatingPerSnapshot (allRatings (testData def))
@@ -126,11 +139,13 @@ demoMeanSnap = meanRatingPerSnapshot
         (distillRatings def {activityCut=Just 12, excludeProvisional=True}
             <$> allRatings (testData def))
     & arrangeTable
-        (fmap (toZakLabel . fst))
+        (fmap (toZakLabel . raceIx))
         ["Mean Rating"]
-        ((:[]) . show . snd)
+        ((:[]) . show . extract)
 
-toZakLabel :: Int -> String
+-- | Converts a one-based race index to the corresponding ZakStunts track
+-- name.
+toZakLabel :: RaceIx -> String
 toZakLabel ri
     | ri > 19 = "C" ++ show (ri - 3)
     | otherwise = case ri of
@@ -141,26 +156,43 @@ toZakLabel ri
         19 -> "P3"
         _ -> "C" ++ show ri
 
-personalHistory :: PipId -> [(Int, Ratings)] -> [(Int, Double)]
-personalHistory p = mapMaybe (traverse @((,) _) (fmap rating . Map.lookup p))
+-- | Rating evolution for a racer.
+personalHistory :: PipId -> [AtRace Ratings] -> [AtRace Double]
+personalHistory p = mapMaybe (traverse @AtRace (fmap rating . Map.lookup p))
 
-demoPersonalHistory :: PipId -> [(Int, Double)]
-demoPersonalHistory p = personalHistory p (allRatings (testData def))
+testPersonalHistory :: PipId -> [AtRace Double]
+testPersonalHistory p = personalHistory p (allRatings (testData def))
 
 -- This might cause trouble with many rows. Rendering the race labels as a
 -- normal column would likely help.
-prettyPersonalHistory :: PipId -> Tab.Table String String String
-prettyPersonalHistory p = demoPersonalHistory p
+demoPersonalHistory :: PipId -> Tab.Table String String String
+demoPersonalHistory p = testPersonalHistory p
     & arrangeTable
-        (fmap (toZakLabel . fst))
+        (fmap (toZakLabel . raceIx))
         [T.unpack p]
-        ((:[]) . show . snd)
+        ((:[]) . show . extract)
 
+-- | Prints a 'Table' to the console.
 demoPretty :: Tab.Table String String String -> IO ()
 demoPretty t = putStrLn (Tab.render id id id t)
 
-prettyRanking :: PostProcessOptions -> Tab.Table String String String
-prettyRanking ppopts = runTest True ppopts
+-- | Sorted racer-rating pairs for a specific race (defined through
+-- 'PostProcessOptions.selectedRace', defaults to the latest race).
+runTest :: DataPreparationOptions -> PostProcessOptions -> [(PipId, Double)]
+runTest dpopts ppopts = allRatings (testData dpopts)
+    & maybe last (flip (!!)) (selectedRace ppopts)
+    & fmap @AtRace Map.toList
+    & distillRatingsAssocList ppopts
+    & extract & fmap (second rating)
+    & sortBy (comparing (Down . snd))
+
+-- | Sorted racer-rating pairs for the latest race, generated using the
+-- default options.
+runTestDefault :: [(PipId, Double)]
+runTestDefault = runTest def def
+
+demoRanking :: PostProcessOptions -> Tab.Table String String String
+demoRanking ppopts = runTest def ppopts
     & arrangeTable
         (fmap show . zipWith const [1..])
         ["Racer", "Rating"]
@@ -170,7 +202,7 @@ prettyRanking ppopts = runTest True ppopts
 -- criteria?
 isKeptRating
     :: PostProcessOptions
-    -> Int                 -- ^ Current event index.
+    -> RaceIx              -- ^ Current event index.
     -> PipData
     -> Bool
 isKeptRating ppopts ri rtg =
@@ -180,28 +212,18 @@ isKeptRating ppopts ri rtg =
 -- | Apply the post-processing criteria to filter ratings (association list
 -- version).
 distillRatingsAssocList
-  :: PostProcessOptions
-     -> (Int, [(p, PipData)]) -> (Int, [(p, PipData)])
-distillRatingsAssocList ppopts (ri, rtgs) =
-    (ri, filter (isKeptRating ppopts ri . snd) rtgs)
+    :: PostProcessOptions -> AtRace [(p, PipData)] -> AtRace [(p, PipData)]
+distillRatingsAssocList ppopts = extend $
+    \(AtRace ri rtgs) -> filter (isKeptRating ppopts ri . snd) rtgs
 
 -- | Apply the post-processing criteria to filter ratings (Map version).
-distillRatings
-  :: PostProcessOptions
-       -> (Int, Ratings) -> (Int, Ratings)
-distillRatings ppopts (ri, rtgs) =
-    (ri, Map.filter (isKeptRating ppopts ri) rtgs)
+distillRatings :: PostProcessOptions -> AtRace Ratings -> AtRace Ratings
+distillRatings ppopts = extend $
+    \(AtRace ri rtgs) ->  Map.filter (isKeptRating ppopts ri) rtgs
 
 
-runTest :: Bool -> PostProcessOptions -> [(PipId, Double)]
-runTest noGhosts ppopts = id
-    . sortBy (comparing (Down . snd))
-    . fmap (second rating) . snd
-    . distillRatingsAssocList ppopts
-    . second Map.toList . maybe last (flip (!!)) (selectedRace ppopts) 
-    $ allRatings (testData (DPOpts noGhosts))
-
-runTestDefault :: [(PipId, Double)]
-runTestDefault = runTest True def
-
--- $> runTestDefault  -- demoPretty demoHighest
+-- $> :set -XOverloadedStrings
+--
+-- $> demoPretty $ demoRanking def { activityCut = Just 12 }
+--
+-- >$> demoPretty $ demoPersonalHistory "Alan Rotoi"

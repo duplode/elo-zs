@@ -88,13 +88,13 @@ isProvisional rtg = entries rtg < 5
 
 -- | The core rating update engine.
 updateRatings 
-    :: (RaceIx, Ratings)  -- ^ Index of the previous event, and previous
-                          -- ratings.
+    :: AtRace Ratings  -- ^ Ratings at the previous race.
     -> [FaceOff']         -- ^ Matches of the current event.
-    -> (RaceIx, Ratings)  -- ^ Index of the current event, and updated
-                          -- ratings.
-updateRatings (ri, rtgs) xys = 
-    ri' `seq` (ri', updateCount $ foldr applyChange rtgs (toDeltas xys))
+    -> AtRace Ratings  -- ^ Updated ratings at the current race.
+updateRatings (AtRace ri rtgs) xys =
+    -- The index used to be computed with a seq here. That is unnecessary now
+    -- that the corresponding AtRace field is strict.
+    AtRace ri' (updateCount $ foldr applyChange rtgs (toDeltas xys))
     where
     -- | Modulation (or, as Glickman puts it, attenuation) factor for rating 
     -- changes. The chosen value, 16, is lower than the standard one for
@@ -157,9 +157,8 @@ updateRatings (ri, rtgs) xys =
 -- | Calculates ratings for all players after each event.
 allRatings
     :: [NE.NonEmpty Standing]  -- ^ Event results.
-    -> [(RaceIx, Ratings)]     -- ^ Ratings after each event, tagged with the
-                               -- event index.
+    -> [AtRace Ratings]        -- ^ Ratings after each event.
 allRatings = scanl'
-    (\(ri, rtgs) xs -> updateRatings (ri, rtgs) (toFaceOffs xs))
-    (0, Map.empty)
+    (\ar xs -> updateRatings ar (toFaceOffs xs))
+    (AtRace 0 Map.empty)
 
