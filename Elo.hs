@@ -32,6 +32,18 @@ instance Default PostProcessOptions where
         , excludeProvisional = False
         }
 
+-- | Arrange a ranking or listing as a 'Table'.
+arrangeTable 
+    :: ([a] -> [String])  -- ^ How to make row headers from the source list.
+    -> [String]           -- ^ Column headers.
+    -> (a -> [String])    -- ^ How to display values.
+    -> [a]                -- ^ Source list.
+    -> Tab.Table String String String
+arrangeTable mkRhs chs mkVals as = Tab.Table
+    (Tab.Group Tab.SingleLine (Tab.Header <$> mkRhs as))
+    (Tab.Group Tab.SingleLine (Tab.Header <$> chs))
+    (mkVals <$> as)
+
 highestPerPip :: [(Int, Ratings)] -> Map.Map PipId (Int, Double)
 highestPerPip =
     foldl' (\hgs (ri, rtgs) ->
@@ -45,12 +57,10 @@ demoHighest = highestPerPip
         (distillRatings' def {excludeProvisional=True}
             <$> allRatings (testData def))
     & Map.toList & sortBy (comparing (Down . snd . snd)) 
-    & \rs -> Tab.Table
-        (Tab.Group Tab.SingleLine (Tab.Header . show
-            <$> zipWith const [1..] rs))
-        (Tab.Group Tab.SingleLine 
-            [Tab.Header "Racer", Tab.Header "Race", Tab.Header "Rating"])
-        ((\(p, (ri, rtg)) -> [T.unpack p, toZakLabel ri, show rtg]) <$> rs)
+    & arrangeTable
+        (fmap show . zipWith const [1..])
+        ["Racer", "Race", "Rating"]
+        (\(p, (ri, rtg)) -> [T.unpack p, toZakLabel ri, show rtg])
 
 foldRatingsPerRace :: L.Fold PipData b -> [(Int, Ratings)] -> [(Int, b)]
 foldRatingsPerRace alg = fmap 
@@ -69,21 +79,22 @@ demoAccumulated = accumulatedRatings
         (distillRatings' def {excludeProvisional=True} 
             <$> allRatings (testData def))
     & sortBy (comparing (Down . snd)) 
-    & \rs -> Tab.Table
-        (Tab.Group Tab.SingleLine (Tab.Header . toZakLabel . fst <$> rs))
-        (Tab.Group Tab.SingleLine [Tab.Header "Accumulated Rating"])
-        ((:[]) . show . snd <$> rs)
+    & arrangeTable
+        (fmap (toZakLabel . fst))
+        ["Accumulated Rating"]
+        ((:[]) . show . snd)
 
 --demoMean = meanRatingPerRace (allRatings (testData def))
 demoMean :: Tab.Table String String String
 demoMean = meanRatingPerRace
         (distillRatings' def {excludeProvisional=True} 
             <$> allRatings (testData def))
-    & \rs -> Tab.Table
-        (Tab.Group Tab.SingleLine (Tab.Header . toZakLabel . fst <$> rs))
-        (Tab.Group Tab.SingleLine [Tab.Header "Mean Rating"])
-        ((:[]) . show . snd <$> rs)
+    & arrangeTable
+        (fmap (toZakLabel . fst))
+        ["Mean Rating"]
+        ((:[]) . show . snd)
 
+-- >$> Tab.render id id id demoWindowLeaders
 windowLeaders :: [(Int, Ratings)] -> [(Int, Maybe (PipId, Double))]
 windowLeaders = fmap 
     $ second (fmap (fst &&& rating . snd)
@@ -95,10 +106,10 @@ demoWindowLeaders :: Tab.Table String String String
 demoWindowLeaders = windowLeaders
         (distillRatings' (def {activityCut=Just 12, excludeProvisional=True}) 
             <$> allRatings (testData def))
-    & \rs -> Tab.Table
-        (Tab.Group Tab.SingleLine (Tab.Header . toZakLabel . fst <$> rs))
-        (Tab.Group Tab.SingleLine [Tab.Header "Racer", Tab.Header "Rating"])
-        (maybe [] (\(p, x) -> [T.unpack p, show x]) . snd <$> rs)
+    & arrangeTable
+        (fmap (toZakLabel . fst))
+        ["Racer", "Rating"]
+        (maybe [] (\(p, x) -> [T.unpack p, show x]) . snd)
 
 -- This one doesn't filter.
 foldRatingsPerSnapshot :: L.Fold PipData b -> [(Int, Ratings)] -> [(Int, b)]
@@ -112,10 +123,10 @@ demoMeanSnap :: Tab.Table String String String
 demoMeanSnap = meanRatingPerSnapshot
         (distillRatings' (def {activityCut=Just 12, excludeProvisional=True}) 
             <$> allRatings (testData def))
-    & \rs -> Tab.Table
-        (Tab.Group Tab.SingleLine (Tab.Header . toZakLabel . fst <$> rs))
-        (Tab.Group Tab.SingleLine [Tab.Header "Mean Rating"])
-        ((:[]) . show . snd <$> rs)
+    & arrangeTable
+        (fmap (toZakLabel . fst))
+        ["Mean Rating"]
+        ((:[]) . show . snd)
 
 toZakLabel :: Int -> String
 toZakLabel ri
@@ -139,21 +150,20 @@ demoPersonalHistory p = personalHistory p (allRatings (testData def))
 -- normal column would likely help.
 prettyPersonalHistory :: PipId -> Tab.Table String String String
 prettyPersonalHistory p = demoPersonalHistory p 
-    & \rs -> Tab.Table 
-        (Tab.Group Tab.SingleLine (Tab.Header . toZakLabel . fst <$> rs))
-        (Tab.Group Tab.SingleLine [Tab.Header (T.unpack p)])
-        ((:[]) . show . snd <$> rs)
+    & arrangeTable 
+        (fmap (toZakLabel . fst))
+        [T.unpack p]
+        ((:[]) . show . snd)
 
 demoPretty :: Tab.Table String String String -> IO ()
 demoPretty t = putStrLn (Tab.render id id id t)
 
 prettyRanking :: PostProcessOptions -> Tab.Table String String String
 prettyRanking ppopts = runTest True ppopts
-    & \rs -> Tab.Table
-        (Tab.Group Tab.SingleLine (Tab.Header . show
-            <$> zipWith const [1..] rs))
-        (Tab.Group Tab.SingleLine [Tab.Header "Racer", Tab.Header "Rating"])
-        ((\(p, rtg) -> [T.unpack p, show rtg]) <$> rs)
+    & arrangeTable
+        (fmap show . zipWith const [1..])
+        ["Racer", "Rating"]
+        (\(p, rtg) -> [T.unpack p, show rtg])
 
 distillRatings
   :: PostProcessOptions
