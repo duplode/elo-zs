@@ -8,6 +8,7 @@ module Types
     , Result(..)
     , PipData(..)
     , Standing
+    , RaceIx
     ) where
 
 import qualified Data.Text as T
@@ -15,9 +16,9 @@ import qualified Data.Map.Strict as Map
 
 -- | Player data which is updated through the Elo ranking computation. 
 data PipData = PipData
-    { rating :: !Double  -- ^ Elo rating.
-    , entries :: !Int    -- ^ Total number of events the player entered.
-    , lastRace :: !Int   -- ^ Index of the last event the player entered.
+    { rating :: !Double     -- ^ Elo rating.
+    , entries :: !Int       -- ^ Total number of events the player entered.
+    , lastRace :: !RaceIx   -- ^ Index of the last event the player entered.
     }
     deriving (Eq, Ord, Show)
 
@@ -42,3 +43,5 @@ type Ratings = Map.Map PipId PipData
 -- | Concrete race result. 
 type Standing = Result PipId Int
 
+-- | Concrete index for locating and identifying races.
+type RaceIx = Int

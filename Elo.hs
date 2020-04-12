@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase, OverloadedStrings, TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 module Elo where
 
 import Zak.Results
@@ -18,6 +19,7 @@ import Data.Maybe
 import qualified Text.Tabular as Tab
 import qualified Text.Tabular.AsciiArt as Tab
 import Data.Function ((&))
+import Control.Comonad
 
 data  PostProcessOptions = PPOpts
     { activityCut :: Maybe Int
@@ -44,7 +46,7 @@ arrangeTable mkRhs chs mkVals as = Tab.Table
     (Tab.Group Tab.SingleLine (Tab.Header <$> chs))
     (mkVals <$> as)
 
-highestPerPip :: [(Int, Ratings)] -> Map.Map PipId (Int, Double)
+highestPerPip :: [(RaceIx, Ratings)] -> Map.Map PipId (RaceIx, Double)
 highestPerPip =
     foldl' (\hgs (ri, rtgs) ->
         let rtgs' = (ri,) . rating <$> rtgs
@@ -54,7 +56,7 @@ highestPerPip =
 --demoHighest = sortBy (comparing (Down . snd . snd)) $ Map.toList $ highestPerPip (allRatings (testData def))
 demoHighest :: Tab.Table String String String
 demoHighest = highestPerPip 
-        (distillRatings' def {excludeProvisional=True}
+        (distillRatings def {excludeProvisional=True}
             <$> allRatings (testData def))
     & Map.toList & sortBy (comparing (Down . snd . snd)) 
     & arrangeTable
@@ -63,22 +65,23 @@ demoHighest = highestPerPip
         (\(p, (ri, rtg)) -> [T.unpack p, toZakLabel ri, show rtg])
 
 foldRatingsPerRace :: L.Fold PipData b -> [(Int, Ratings)] -> [(Int, b)]
-foldRatingsPerRace alg = fmap 
+foldRatingsPerRace alg = fmap
     $ second (L.fold alg)
-    . (\(ri, rtgs) -> (ri, Map.filter (\rtg -> lastRace rtg == ri) rtgs))
+    . (extend (\(ri, rtgs) -> Map.filter (\rtg -> lastRace rtg == ri) rtgs))
+    -- . (\(ri, rtgs) -> (ri, Map.filter (\rtg -> lastRace rtg == ri) rtgs))
 
 accumulatedRatings :: [(Int, Ratings)] -> [(Int, Double)]
-accumulatedRatings = foldRatingsPerRace (lmap rating L.sum) 
+accumulatedRatings = foldRatingsPerRace (lmap rating L.sum)
 
 meanRatingPerRace :: [(Int, Ratings)] -> [(Int, Double)]
-meanRatingPerRace = foldRatingsPerRace (lmap rating L.mean) 
+meanRatingPerRace = foldRatingsPerRace (lmap rating L.mean)
 
 -- demoAccumulated = sortBy (comparing (Down . snd)) $ accumulatedRatings (allRatings (testData def))
 demoAccumulated :: Tab.Table String String String
-demoAccumulated = accumulatedRatings 
-        (distillRatings' def {excludeProvisional=True} 
+demoAccumulated = accumulatedRatings
+        (distillRatings def {excludeProvisional=True}
             <$> allRatings (testData def))
-    & sortBy (comparing (Down . snd)) 
+    & sortBy (comparing (Down . snd))
     & arrangeTable
         (fmap (toZakLabel . fst))
         ["Accumulated Rating"]
@@ -87,24 +90,23 @@ demoAccumulated = accumulatedRatings
 --demoMean = meanRatingPerRace (allRatings (testData def))
 demoMean :: Tab.Table String String String
 demoMean = meanRatingPerRace
-        (distillRatings' def {excludeProvisional=True} 
+        (distillRatings def {excludeProvisional=True}
             <$> allRatings (testData def))
     & arrangeTable
         (fmap (toZakLabel . fst))
         ["Mean Rating"]
         ((:[]) . show . snd)
 
--- >$> Tab.render id id id demoWindowLeaders
 windowLeaders :: [(Int, Ratings)] -> [(Int, Maybe (PipId, Double))]
 windowLeaders = fmap 
-    $ second (fmap (fst &&& rating . snd)
+    $ second (fmap (second rating)
         . L.fold (L.maximumBy (comparing (rating . snd))) . Map.toList)
     . (\(ri, rtgs) -> (ri, Map.filter (\rtg -> ri - lastRace rtg < 4) rtgs))
 
 --demoWindowLeaders = windowLeaders (allRatings (testData def))
 demoWindowLeaders :: Tab.Table String String String
 demoWindowLeaders = windowLeaders
-        (distillRatings' (def {activityCut=Just 12, excludeProvisional=True}) 
+        (distillRatings def {activityCut=Just 12, excludeProvisional=True}
             <$> allRatings (testData def))
     & arrangeTable
         (fmap (toZakLabel . fst))
@@ -121,7 +123,7 @@ meanRatingPerSnapshot = foldRatingsPerSnapshot (lmap rating L.mean)
 -- demoMeanSnap = meanRatingPerSnapshot (allRatings (testData def))
 demoMeanSnap :: Tab.Table String String String
 demoMeanSnap = meanRatingPerSnapshot
-        (distillRatings' (def {activityCut=Just 12, excludeProvisional=True}) 
+        (distillRatings def {activityCut=Just 12, excludeProvisional=True}
             <$> allRatings (testData def))
     & arrangeTable
         (fmap (toZakLabel . fst))
@@ -140,8 +142,7 @@ toZakLabel ri
         _ -> "C" ++ show ri
 
 personalHistory :: PipId -> [(Int, Ratings)] -> [(Int, Double)]
-personalHistory p = catMaybes
-    . fmap (traverse (fmap rating . Map.lookup p))
+personalHistory p = mapMaybe (traverse @((,) _) (fmap rating . Map.lookup p))
 
 demoPersonalHistory :: PipId -> [(Int, Double)]
 demoPersonalHistory p = personalHistory p (allRatings (testData def))
@@ -149,8 +150,8 @@ demoPersonalHistory p = personalHistory p (allRatings (testData def))
 -- This might cause trouble with many rows. Rendering the race labels as a
 -- normal column would likely help.
 prettyPersonalHistory :: PipId -> Tab.Table String String String
-prettyPersonalHistory p = demoPersonalHistory p 
-    & arrangeTable 
+prettyPersonalHistory p = demoPersonalHistory p
+    & arrangeTable
         (fmap (toZakLabel . fst))
         [T.unpack p]
         ((:[]) . show . snd)
@@ -165,37 +166,42 @@ prettyRanking ppopts = runTest True ppopts
         ["Racer", "Rating"]
         (\(p, rtg) -> [T.unpack p, show rtg])
 
+-- | Should this rating be retained according to the post-processing
+-- criteria?
+isKeptRating
+    :: PostProcessOptions
+    -> Int                 -- ^ Current event index.
+    -> PipData
+    -> Bool
+isKeptRating ppopts ri rtg =
+    maybe True (\ac -> ri - lastRace rtg <= ac) (activityCut ppopts)
+        && not (excludeProvisional ppopts && isProvisional rtg)
+
+-- | Apply the post-processing criteria to filter ratings (association list
+-- version).
+distillRatingsAssocList
+  :: PostProcessOptions
+     -> (Int, [(p, PipData)]) -> (Int, [(p, PipData)])
+distillRatingsAssocList ppopts (ri, rtgs) =
+    (ri, filter (isKeptRating ppopts ri . snd) rtgs)
+
+-- | Apply the post-processing criteria to filter ratings (Map version).
 distillRatings
   :: PostProcessOptions
-     -> (Int, [(a, PipData)]) -> (Int, [(a, PipData)])
-distillRatings ppopts (ri, rtgs) =
-    (ri, filter 
-        (\(_, rtg) -> maybe True
-                (\ac -> ri - lastRace rtg <= ac) 
-                (activityCut ppopts)
-            && not (excludeProvisional ppopts && isProvisional rtg)) 
-        rtgs)
-
-distillRatings'
-  :: PostProcessOptions
        -> (Int, Ratings) -> (Int, Ratings)
-distillRatings' ppopts (ri, rtgs) =
-    (ri, Map.filter 
-        (\rtg -> maybe True
-                (\ac -> ri - lastRace rtg <= ac) 
-                (activityCut ppopts)
-            && not (excludeProvisional ppopts && isProvisional rtg)) 
-        rtgs)
+distillRatings ppopts (ri, rtgs) =
+    (ri, Map.filter (isKeptRating ppopts ri) rtgs)
+
 
 runTest :: Bool -> PostProcessOptions -> [(PipId, Double)]
 runTest noGhosts ppopts = id
-    . sortBy (comparing (Down . snd)) 
+    . sortBy (comparing (Down . snd))
     . fmap (second rating) . snd
-    . distillRatings ppopts
+    . distillRatingsAssocList ppopts
     . second Map.toList . maybe last (flip (!!)) (selectedRace ppopts) 
     $ allRatings (testData (DPOpts noGhosts))
 
 runTestDefault :: [(PipId, Double)]
 runTestDefault = runTest True def
 
-
+-- $> runTestDefault  -- demoPretty demoHighest

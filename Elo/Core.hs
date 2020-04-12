@@ -88,10 +88,11 @@ isProvisional rtg = entries rtg < 5
 
 -- | The core rating update engine.
 updateRatings 
-    :: (Int, Ratings)  -- ^ Index of the previous event, and previous 
-                       -- ratings.
-    -> [FaceOff']      -- ^ Matches of the current event. 
-    -> (Int, Ratings)  -- ^ Index of the current event, and updated ratings.
+    :: (RaceIx, Ratings)  -- ^ Index of the previous event, and previous
+                          -- ratings.
+    -> [FaceOff']         -- ^ Matches of the current event.
+    -> (RaceIx, Ratings)  -- ^ Index of the current event, and updated
+                          -- ratings.
 updateRatings (ri, rtgs) xys = 
     ri' `seq` (ri', updateCount $ foldr applyChange rtgs (toDeltas xys))
     where
@@ -156,7 +157,7 @@ updateRatings (ri, rtgs) xys =
 -- | Calculates ratings for all players after each event.
 allRatings
     :: [NE.NonEmpty Standing]  -- ^ Event results.
-    -> [(Int, Ratings)]        -- ^ Ratings after each event, tagged with the
+    -> [(RaceIx, Ratings)]     -- ^ Ratings after each event, tagged with the
                                -- event index.
 allRatings = scanl'
     (\(ri, rtgs) xs -> updateRatings (ri, rtgs) (toFaceOffs xs))
