@@ -20,9 +20,12 @@ executable elo-zs
   main-is:             Main.hs
   other-modules:       Elo
                      , Elo.Core
-                     , Zak.Results
                      , Types
                      , DataPreparation
+                     , Tabular
+                     , Zak
+                     , Zak.Misc
+                     , Zak.Results
   -- other-extensions:
   build-depends:       base >=4.13 && <4.14
                      , containers

@@ -5,8 +5,9 @@
 -- The core Elo algorithm.
 --
 -- The fine tuning of algorithm parameters was partly guided by the
--- discussion on Glickman, Mark E., /A Comprehensive Guide to Chess Ratings/
--- (1995), available at <http://www.glicko.net/research/acjpaper.pdf> .
+-- discussion on Glickman, Mark E.,
+-- [/A Comprehensive Guide to Chess Ratings/](http://www.glicko.net/research/acjpaper.pdf)
+-- (1995).
 module Elo.Core
     ( allRatings
     , isProvisional

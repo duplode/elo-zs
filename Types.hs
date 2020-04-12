@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
--- | 
+-- |
 -- Module: Types
 --
 -- Shared domain types.
