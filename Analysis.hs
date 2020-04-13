@@ -9,7 +9,6 @@ import Util.Lone
 
 import qualified Data.Map.Strict as Map
 import Data.Ord
-import Data.List
 import qualified Control.Foldl as L
 import Data.Profunctor
 import Control.Comonad
@@ -19,7 +18,7 @@ import Data.Maybe
 -- | Highest rating achieved by each racer, annotated with the race at which
 -- it was achieved.
 highestPerPip :: [AtRace Ratings] -> Map.Map PipId (AtRace Double)
-highestPerPip = foldl' unionHighest Map.empty
+highestPerPip = L.fold (L.Fold unionHighest Map.empty id)
     where
     unionHighest highs = Map.unionWith higher highs . surroundL (fmap rating)
     higher ari@(AtRace _ x) arj@(AtRace _ y) = if y > x then arj else ari

@@ -9,7 +9,8 @@
 -- [/A Comprehensive Guide to Chess Ratings/](http://www.glicko.net/research/acjpaper.pdf)
 -- (1995).
 module Engine
-    ( allRatings
+    ( finalRatings
+    , allRatings
     , isProvisional
     ) where
 
@@ -19,10 +20,10 @@ import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.List
 import Data.Bool
 import Data.Ord
 import Control.Comonad
+import qualified Control.Foldl as L
 
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
@@ -79,10 +80,10 @@ updateRatings
     => AtRace (Map p PipData)  -- ^ Ratings at the previous race.
     -> [FaceOff p]             -- ^ Matches of the current event.
     -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
-updateRatings (AtRace ri rtgs) xys =
+updateRatings (AtRace ri rtgs) =
+    AtRace ri' . updateCount . L.fold applyCurrentChanges . toDeltas
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
-    AtRace ri' (updateCount $ foldr applyChange rtgs (toDeltas xys))
     where
     -- | Modulation (or, as Glickman puts it, attenuation) factor for rating 
     -- changes. The chosen value, 16, is lower than the standard one for
@@ -128,10 +129,17 @@ updateRatings (AtRace ri rtgs) xys =
     --
     -- The last event index is updated here, as that should only be done for
     -- players who took part in the current event.
-    applyChange :: (p, Double) -> Map p PipData -> Map p PipData
-    applyChange (p, d) = flip Map.alter p $ Just . \case
-        Nothing -> PipData (defRating + d) 0 ri'
-        Just (PipData rtg n _) -> PipData (rtg + d) n ri'
+    applyChange :: Map p PipData -> (p, Double) -> Map p PipData
+    applyChange rtgs (p, d) = Map.alter upsertPip p rtgs
+        where
+        upsertPip :: Maybe PipData -> Maybe PipData
+        upsertPip =  Just . \case
+            Nothing -> PipData (defRating + d) 0 ri'
+            Just (PipData rtg n _) -> PipData (rtg + d) n ri'
+
+    -- | Applies all changes for the current race.
+    applyCurrentChanges :: L.Fold (p, Double) (Map p PipData)
+    applyCurrentChanges = L.Fold applyChange rtgs id
 
     -- | Updates the event count for players who took part in the current
     -- event.
@@ -142,12 +150,19 @@ updateRatings (AtRace ri rtgs) xys =
     updateCount = fmap (\(PipData rtg n i) ->
         PipData rtg (bool id (+ 1) (i == ri') n) i)
 
+-- | Calculates ratings for all players after the final event.
+finalRatings
+    :: Ord p
+    => L.Fold (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
+finalRatings = L.Fold
+    (\ar xs -> updateRatings ar (toFaceOffs xs))
+    (AtRace 0 Map.empty)
+    id
+
 -- | Calculates ratings for all players after each event.
 allRatings
     :: Ord p
     => [NE.NonEmpty (Result p Int)]  -- ^ Event results.
     -> [AtRace (Map p PipData)]      -- ^ Ratings after each event.
-allRatings = scanl'
-    (\ar xs -> updateRatings ar (toFaceOffs xs))
-    (AtRace 0 Map.empty)
+allRatings = L.scan finalRatings
 
