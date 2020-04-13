@@ -74,20 +74,22 @@ accumulatedRatings = foldRatingsPerRace (lmap rating L.sum)
 meanRatingPerRace :: [AtRace Ratings] -> [AtRace Double]
 meanRatingPerRace = foldRatingsPerRace (lmap rating L.mean)
 
--- | Highest rating among racers active within the last three races. A
+-- | Highest rating among racers active within the last four races. A
 -- current form metric.
 windowLeaders :: [AtRace Ratings] -> [AtRace (Maybe (PipId, Double))]
-windowLeaders = fmap
-    $ extend (L.fold (lmap (second rating) $ L.maximumBy (comparing extract))
-        . Map.toList . recentlyActivePipsOnly)
-        -- . Map.toList . fmap rating . recentlyActivePipsOnly)
+windowLeaders = foldTransversally Map.toList isRecentlyActive algLead
     where
-    recentlyActivePipsOnly (AtRace ri rtgs) =
-        Map.filter (\rtg -> ri - lastRace rtg <= 3) rtgs
+    isRecentlyActive (AtRace ri (_, rtg)) = ri - lastRace rtg <= 3
+    algLead = lmap (second rating) (L.maximumBy (comparing snd))
+-- windowLeaders is the primary reason why 'foldTransversally' has its
+-- @s -> f a@ argument. In particular, note that @Map.toList@ is not a
+-- natural transformation between @Functor@s, and that we ultimately want
+-- the dictionary keys to show up in the output of the fold.
 
 -- | Folds collections of ratings-at-races, with no filtering.
 foldRatingsPerSnapshot :: L.Fold PipData b -> [AtRace Ratings] -> [AtRace b]
 foldRatingsPerSnapshot alg = fmap (fmap @AtRace (L.fold alg))
+-- This is straightforward enough to be done without foldTransversally.
 
 -- | Mean ratings per race, including all racers ever. A meta-metric.
 meanRatingPerSnapshot :: [AtRace Ratings] -> [AtRace Double]

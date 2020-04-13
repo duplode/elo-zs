@@ -45,7 +45,6 @@ demoAccumulated = accumulatedRatings
         (fmap (toZakLabel . raceIx))
         ["Accumulated Rating"]
         ((:[]) . show . extract)
--- $> demoPretty demoAccumulated
 
 -- >$> meanRatingPerRace (allRatings (testData def))
 demoMean :: Tab.Table String String String
