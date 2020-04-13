@@ -7,15 +7,14 @@ import Engine
 import Tidying
 import Util.Lone
 
-import Prelude hiding (filter)
 import qualified Data.Map.Strict as Map
 import Data.Ord
-import Data.List hiding (filter)
+import Data.List
 import qualified Control.Foldl as L
 import Data.Profunctor
 import Control.Comonad
 import Control.Arrow
-import Data.Witherable.Class
+import Data.Maybe
 
 highestPerPip :: [AtRace Ratings] -> Map.Map PipId (AtRace Double)
 highestPerPip =
@@ -27,7 +26,7 @@ highestPerPip =
 
 
 foldTransversally
-    :: (Foldable f, Filterable f, Lone g u)
+    :: (Foldable f, Functor f, Lone g u)
     => (s -> f a)     -- ^ Prepare the sources for folding.
     -> (g a -> Bool)  -- ^ Filtering predicate for the input which uses the
                       -- 'Lone' comonadic context around it.
@@ -38,7 +37,7 @@ foldTransversally
                       -- ratings-at-races.
     -> [g b]          -- ^ Results.
 foldTransversally expose pred alg srcs =
-    extend (L.fold alg . fmap extract . filter pred . codistributeL)
+    extend (L.fold ((L.prefilter pred . lmap extract) alg) . codistributeL)
         . fmap expose <$> srcs
 -- This implementation calls for a little explanation. The crucial trick is
 -- @extend codistributeL@:
@@ -46,8 +45,11 @@ foldTransversally expose pred alg srcs =
 -- > extend codistributeL :: (Lone g, Functor f) => g (f a) -> g (f (g a))
 --
 -- It duplicates the 'Lone' comonadic environment two layers down, so that
--- it can be used by the filter predicate. The later @extract@ then casts
--- it away.
+-- it can be used by the filter predicate. Afterwards, @extract@ casts it
+-- away. Note that @prefilter pred@ and @lmap extract@ seem to be composed
+-- backwards. That happens because they are acting on inputs, and therefore
+-- contravariantly. Moving those transformations inside the algebra matters
+-- because it frees us from imposing a @Filterable@ constraint on @f@.
 --
 -- The concrete @f@ of most immediate interest here is 'Map', which is not
 -- @Applicative@, and so using the more familiar @sequenceA@ instead of
