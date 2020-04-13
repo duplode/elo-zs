@@ -16,13 +16,13 @@ import Control.Comonad
 import Control.Arrow
 import Data.Maybe
 
+-- | Highest rating achieved by each racer, annotated with the race at which
+-- it was achieved.
 highestPerPip :: [AtRace Ratings] -> Map.Map PipId (AtRace Double)
-highestPerPip =
-    foldl' (\highs (AtRace ri rtgs) ->
-        let rtgs' = AtRace ri . rating <$> rtgs  -- Lone, or left adjoint.
-        in Map.unionWith higher highs rtgs') Map.empty
+highestPerPip = foldl' unionHighest Map.empty
     where
-    higher ari@(AtRace _ x) arj@(AtRace _ y) = if y > x then ari else arj
+    unionHighest highs = Map.unionWith higher highs . surroundL (fmap rating)
+    higher ari@(AtRace _ x) arj@(AtRace _ y) = if y > x then arj else ari
 
 -- | Folds a source by the means of 'Control.Foldl.Fold', while preserving the
 -- 'Lone' comonadic context the source lies in, as well as using it for

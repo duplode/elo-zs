@@ -24,7 +24,7 @@ import qualified Text.Tabular as Tab
 import Data.Function ((&))
 import Control.Comonad
 
--- >$> sortBy (comparing (Down . snd . snd)) $ Map.toList $ highestPerPip (allRatings (testData def))
+-- >$> sortBy (comparing (Down . extract . snd)) $ Map.toList $ highestPerPip (allRatings (testData def))
 demoHighest :: Tab.Table String String String
 demoHighest = highestPerPip
         (distillRatings def {excludeProvisional=True}
