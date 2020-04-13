@@ -24,21 +24,26 @@ highestPerPip =
     where
     higher ari@(AtRace _ x) arj@(AtRace _ y) = if y > x then ari else arj
 
-
-foldTransversally
+-- | Folds a source by the means of 'Control.Foldl.Fold', while preserving the
+-- 'Lone' comonadic context the source lies in, as well as using it for
+-- filtering the fold input.
+--
+-- This function provides a general strategy that covers the problem of
+-- summarising ratings-at-a-race data.
+foldThroughLone
     :: (Foldable f, Functor f, Lone g u)
-    => (s -> f a)     -- ^ Prepare the sources for folding.
+    => (s -> f a)     -- ^ Prepare the source for folding.
     -> (g a -> Bool)  -- ^ Filtering predicate for the input which uses the
                       -- 'Lone' comonadic context around it.
     -> L.Fold a b     -- ^ Folding algebra. /foldl/ provides ways to perform
                       -- various auxiliary steps, including input mapping
                       -- ('lmap'/'premap') and filtering ('prefilter').
-    -> [g s]          -- ^ Sources. Typically collections of
+    -> g s            -- ^ Source. Typically a collection of
                       -- ratings-at-races.
-    -> [g b]          -- ^ Results.
-foldTransversally expose pred alg srcs =
+    -> g b            -- ^ Result.
+foldThroughLone expose pred alg =
     extend (L.fold ((L.prefilter pred . lmap extract) alg) . codistributeL)
-        . fmap expose <$> srcs
+        . fmap expose
 -- This implementation calls for a little explanation. The crucial trick is
 -- @extend codistributeL@:
 --
@@ -56,6 +61,18 @@ foldTransversally expose pred alg srcs =
 -- @codistributeL@ wouldn't do. A more left field alternative would be
 -- @sequence1@ from /semigroupoids/, and even then the @Apply@ constraint 
 -- would be needlessly restrictive.
+
+-- | Convenience wrapper for using 'foldThroughLone' on a list of sources.
+-- See the 'foldThroughLone' documentation for an explanation of the role of
+-- each argument.
+foldTransversally
+    :: (Foldable f, Functor f, Lone g u)
+    => (s -> f a)
+    -> (g a -> Bool)
+    -> L.Fold a b
+    -> [g s]
+    -> [g b]
+foldTransversally expose pred alg = fmap (foldThroughLone expose pred alg)
 
 -- | Folds collections of ratings-at-races while only using the ratings of
 -- racers who took part in the current race.
