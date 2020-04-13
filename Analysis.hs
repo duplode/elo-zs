@@ -5,14 +5,17 @@ module Analysis where
 import Types
 import Engine
 import Tidying
+import Util.Lone
 
+import Prelude hiding (filter)
 import qualified Data.Map.Strict as Map
 import Data.Ord
-import Data.List
+import Data.List hiding (filter)
 import qualified Control.Foldl as L
 import Data.Profunctor
-import Data.Maybe
 import Control.Comonad
+import Control.Arrow
+import Data.Witherable.Class
 
 highestPerPip :: [AtRace Ratings] -> Map.Map PipId (AtRace Double)
 highestPerPip =
@@ -22,13 +25,42 @@ highestPerPip =
     where
     higher ari@(AtRace _ x) arj@(AtRace _ y) = if y > x then ari else arj
 
+
+foldTransversally
+    :: (Foldable f, Filterable f, Lone g u)
+    => (s -> f a)     -- ^ Prepare the sources for folding.
+    -> (g a -> Bool)  -- ^ Filtering predicate for the input which uses the
+                      -- 'Lone' comonadic context around it.
+    -> L.Fold a b     -- ^ Folding algebra. /foldl/ provides ways to perform
+                      -- various auxiliary steps, including input mapping
+                      -- ('lmap'/'premap') and filtering ('prefilter').
+    -> [g s]          -- ^ Sources. Typically collections of
+                      -- ratings-at-races.
+    -> [g b]          -- ^ Results.
+foldTransversally expose pred alg srcs =
+    extend (L.fold alg . fmap extract . filter pred . codistributeL)
+        . fmap expose <$> srcs
+-- This implementation calls for a little explanation. The crucial trick is
+-- @extend codistributeL@:
+--
+-- > extend codistributeL :: (Lone g, Functor f) => g (f a) -> g (f (g a))
+--
+-- It duplicates the 'Lone' comonadic environment two layers down, so that
+-- it can be used by the filter predicate. The later @extract@ then casts
+-- it away.
+--
+-- The concrete @f@ of most immediate interest here is 'Map', which is not
+-- @Applicative@, and so using the more familiar @sequenceA@ instead of
+-- @codistributeL@ wouldn't do. A more left field alternative would be
+-- @sequence1@ from /semigroupoids/, and even then the @Apply@ constraint 
+-- would be needlessly restrictive.
+
 -- | Folds collections of ratings-at-races while only using the ratings of
 -- racers who took part in the current race.
 foldRatingsPerRace :: L.Fold PipData b -> [AtRace Ratings] -> [AtRace b]
-foldRatingsPerRace alg = fmap $ extend (L.fold alg . currentlyActivePipsOnly)
+foldRatingsPerRace = foldTransversally id isCurrentlyActive
     where
-    currentlyActivePipsOnly (AtRace ri rtgs) =
-        Map.filter (\rtg -> lastRace rtg == ri) rtgs
+    isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
 
 -- | Acumulated ratings per race, including only racers who took part in each
 -- race. A race strength metric.
@@ -44,8 +76,9 @@ meanRatingPerRace = foldRatingsPerRace (lmap rating L.mean)
 -- current form metric.
 windowLeaders :: [AtRace Ratings] -> [AtRace (Maybe (PipId, Double))]
 windowLeaders = fmap
-    $ extend (L.fold (L.maximumBy (comparing extract))
-        . Map.toList . fmap rating . recentlyActivePipsOnly)
+    $ extend (L.fold (lmap (second rating) $ L.maximumBy (comparing extract))
+        . Map.toList . recentlyActivePipsOnly)
+        -- . Map.toList . fmap rating . recentlyActivePipsOnly)
     where
     recentlyActivePipsOnly (AtRace ri rtgs) =
         Map.filter (\rtg -> ri - lastRace rtg <= 3) rtgs

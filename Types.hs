@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE MultiParamTypeClasses, TypeFamilies #-}
 -- |
 -- Module: Types
 --
@@ -20,11 +21,17 @@ module Types (
     , raceIx
     , fromAtRace
     , toAtRace
+    , CoatRace(..)
     ) where
+
+-- import Util.Lone
 
 import qualified Data.Text as T
 import qualified Data.Map.Strict as Map
 import Control.Comonad
+import Data.Functor.Adjunction
+import Data.Functor.Rep
+import Data.Distributive
 
 -- | Concrete identifier for the racers/players being ranked.
 type PipId = T.Text
@@ -98,3 +105,23 @@ fromAtRace (AtRace ri a) = (ri, a)
 instance Comonad AtRace where
     extract (AtRace _ a) = a
     extend f ar@(AtRace ri _) = AtRace ri (f ar)
+
+-- ^ An unremarkable right adjoint for 'AtRace'. The only reason it exists
+-- here is so that a 'Lone' constraint on 'AtRace' can be satisfied.
+--
+-- It is not /entirely/ impossible there might be some use for a stream
+-- encoding of 'CoatRace', though I'm not holding my breath.
+newtype CoatRace a = CoatRace (RaceIx -> a)
+    deriving (Functor)
+
+instance Distributive CoatRace where
+    collect f u = CoatRace $ \ri -> (\(CoatRace g) -> g ri) . f <$> u
+
+instance Representable CoatRace where
+    type Rep CoatRace = RaceIx
+    tabulate = CoatRace
+    index (CoatRace g) = g
+
+instance Adjunction AtRace CoatRace where
+    leftAdjunct uc = \a -> CoatRace $ \ri -> uc (AtRace ri a)
+    rightAdjunct cr = \(AtRace ri a) -> let (CoatRace g) = cr a in g ri

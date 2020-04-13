@@ -38,13 +38,14 @@ demoHighest = highestPerPip
 -- >$> sortBy (comparing (Down . snd)) $ accumulatedRatings (allRatings (testData def))
 demoAccumulated :: Tab.Table String String String
 demoAccumulated = accumulatedRatings
-        (distillRatings def {excludeProvisional=True}
+        (distillRatings def {excludeProvisional=False}
             <$> allRatings (testData def))
     & sortBy (comparing (Down . extract))
     & arrangeTable
         (fmap (toZakLabel . raceIx))
         ["Accumulated Rating"]
         ((:[]) . show . extract)
+-- $> demoPretty demoAccumulated
 
 -- >$> meanRatingPerRace (allRatings (testData def))
 demoMean :: Tab.Table String String String
