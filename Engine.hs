@@ -68,9 +68,8 @@ scoreDiscrepancy gap otc = wdlScore otc - expectedScore
 
 -- | Is the player rating provisional?
 --
--- A rating is considered provisional until the player takes part in five
--- events. The test uses '<' rather than '<=' because it is applied before
--- the ratings are updated for the current event.
+-- A rating is considered provisional until the player has taken part in five
+-- events.
 isProvisional :: PipData -> Bool
 isProvisional rtg = entries rtg < 5
 
@@ -85,7 +84,7 @@ updateRatings (AtRace ri rtgs) =
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
     where
-    -- | Modulation (or, as Glickman puts it, attenuation) factor for rating 
+    -- | Modulation (or, as Glickman puts it, attenuation) factor for rating
     -- changes. The chosen value, 16, is lower than the standard one for
     -- chess, 24, in order to compensate for the high number of matches in a
     -- typical race.
@@ -100,16 +99,19 @@ updateRatings (AtRace ri rtgs) =
     -- Using different modulation factors in a single match means a match can
     -- cause a net change on the accumulated rating of the player pool. On
     -- why that is less of a problem than it might seem at first, see
-    -- Glickman (1995), p. 36. 
+    -- Glickman (1995), p. 36.
     kLo = 8
     -- | Initial rating for new players.
     defRating = 1500
     -- | Index of the current event.
     ri' = ri + 1
 
+    -- Provisional rating test, defaulting to True for new entrants. Note
+    -- that for the purposes of rating calculation the test is applied before
+    -- the update.
     provisionalCheck :: Maybe PipData -> Bool
     provisionalCheck = maybe True isProvisional
-    
+
     -- | Calculates individual rating changes from a list of matches.
     toDeltas :: [FaceOff p] -> [(p, Double)]
     toDeltas = concatMap $ \xy ->
@@ -119,7 +121,7 @@ updateRatings (AtRace ri rtgs) =
             py = Map.lookup (opponent xy) rtgs
             gap = maybe defRating rating px - maybe defRating rating py
             (kx, ky)
-                | provisionalCheck px && not (provisionalCheck py) = (kHi, kLo) 
+                | provisionalCheck px && not (provisionalCheck py) = (kHi, kLo)
                 | not (provisionalCheck px) && provisionalCheck py = (kLo, kHi)
                 | otherwise = (kBase, kBase)
             baseDelta = scoreDiscrepancy gap (outcome xy)

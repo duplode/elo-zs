@@ -95,7 +95,7 @@ meanRatingPerRace = foldRatingsPerRace (lmap rating L.mean)
 windowLeaders :: [AtRace Ratings] -> [AtRace (Maybe (PipId, Double))]
 windowLeaders = foldTransversally Map.toList isRecentlyActive algLead
     where
-    isRecentlyActive (AtRace ri (_, rtg)) = ri - lastRace rtg <= 3
+    isRecentlyActive (AtRace ri (_, rtg)) = ri - lastRace rtg < 4
     algLead = lmap (second rating) (L.maximumBy (comparing snd))
 -- windowLeaders is the primary reason why 'foldTransversally' has its
 -- @s -> f a@ argument. In particular, note that @Map.toList@ is not a
@@ -113,7 +113,7 @@ meanRatingPerSnapshot = foldRatingsPerSnapshot (lmap rating L.mean)
 
 -- | Rating evolution for a racer.
 personalHistory :: PipId -> [AtRace Ratings] -> [AtRace Double]
-personalHistory p = mapMaybe (traverse @AtRace (fmap rating . Map.lookup p))
+personalHistory p = mapMaybe (surroundL @AtRace (fmap rating . Map.lookup p))
 
 -- | Should this rating be retained according to the post-processing
 -- criteria?
@@ -123,7 +123,7 @@ isKeptRating
     -> PipData
     -> Bool
 isKeptRating ppopts ri rtg =
-    maybe True (\ac -> ri - lastRace rtg <= ac) (activityCut ppopts)
+    maybe True (\ac -> ri - lastRace rtg < ac) (activityCut ppopts)
         && not (excludeProvisional ppopts && isProvisional rtg)
 
 -- | Apply the post-processing criteria to filter ratings (association list
