@@ -15,3 +15,5 @@ dist-newstyle
 #*#
 
 *.exe
+
+scratchpad.hs
