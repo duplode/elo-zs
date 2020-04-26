@@ -24,6 +24,7 @@ import Data.Bool
 import Data.Ord
 import Control.Comonad
 import qualified Control.Foldl as L
+import qualified Control.Scanl as LS
 
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
@@ -164,7 +165,6 @@ finalRatings = L.Fold
 -- | Calculates ratings for all players after each event.
 allRatings
     :: Ord p
-    => [NE.NonEmpty (Result p Int)]  -- ^ Event results.
-    -> [AtRace (Map p PipData)]      -- ^ Ratings after each event.
-allRatings = L.scan finalRatings
+    => LS.Scan (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
+allRatings = LS.postscan finalRatings
 

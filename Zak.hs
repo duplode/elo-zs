@@ -19,16 +19,21 @@ import Data.Ord
 import Data.List
 import qualified Data.Text as T
 import Control.Arrow
-import Data.Default
+import Data.Default.Class
 import qualified Text.Tabular as Tab
 import Data.Function ((&))
+import Data.Functor ((<&>))
 import Control.Comonad
+import qualified Control.Scanl as LS
+import qualified Control.Foldl as L
+import Data.Semigroupoid
 
 -- >$> sortBy (comparing (Down . extract . snd)) $ Map.toList $ highestPerPip (allRatings (testData def))
 demoHighest :: Tab.Table String String String
-demoHighest = highestPerPip
-        (distillRatings def {excludeProvisional=True}
-            <$> allRatings (testData def))
+demoHighest = testData def
+    & L.fold
+        (highestPerPip `o`
+            (distillRatings def {excludeProvisional=True} <$> finalRatings))
     & Map.toList & sortBy (comparing (Down . extract . snd))
     & arrangeTable
         (fmap show . zipWith const [1..])
@@ -37,9 +42,11 @@ demoHighest = highestPerPip
 
 -- >$> sortBy (comparing (Down . snd)) $ accumulatedRatings (allRatings (testData def))
 demoAccumulated :: Tab.Table String String String
-demoAccumulated = accumulatedRatings
-        (distillRatings def {excludeProvisional=False}
-            <$> allRatings (testData def))
+demoAccumulated = testData def
+    & LS.scan
+        (accumulatedRatings
+            . distillRatings def {excludeProvisional=False}
+                <$> allRatings)
     & sortBy (comparing (Down . extract))
     & arrangeTable
         (fmap (toZakLabel . raceIx))
@@ -48,9 +55,11 @@ demoAccumulated = accumulatedRatings
 
 -- >$> meanRatingPerRace (allRatings (testData def))
 demoMean :: Tab.Table String String String
-demoMean = meanRatingPerRace
-        (distillRatings def {excludeProvisional=True}
-            <$> allRatings (testData def))
+demoMean = testData def
+    & LS.scan
+        (meanRatingPerRace
+            . distillRatings def {excludeProvisional=True}
+                <$> allRatings)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
         ["Mean Rating"]
@@ -58,9 +67,11 @@ demoMean = meanRatingPerRace
 
 -- >$> windowLeaders (allRatings (testData def))
 demoWindowLeaders :: Tab.Table String String String
-demoWindowLeaders = windowLeaders
-        (distillRatings def {activityCut=Just 12, excludeProvisional=True}
-            <$> allRatings (testData def))
+demoWindowLeaders = testData def
+    & LS.scan
+        (windowLeaders
+            . distillRatings def {activityCut=Just 12, excludeProvisional=True}
+                <$> allRatings)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
         ["Racer", "Rating"]
@@ -68,21 +79,24 @@ demoWindowLeaders = windowLeaders
 
 -- >$> meanRatingPerSnapshot (allRatings (testData def))
 demoMeanSnap :: Tab.Table String String String
-demoMeanSnap = meanRatingPerSnapshot
-        (distillRatings def {activityCut=Just 12, excludeProvisional=True}
-            <$> allRatings (testData def))
+demoMeanSnap = testData def
+    & LS.scan
+        (meanRatingAtSnapshot
+            . distillRatings def {activityCut=Just 12, excludeProvisional=True}
+                <$> allRatings)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
         ["Mean Rating"]
         ((:[]) . show . extract)
 
-testPersonalHistory :: PipId -> [AtRace Double]
-testPersonalHistory p = personalHistory p (allRatings (testData def))
-
 -- This might cause trouble with many rows. Rendering the race labels as a
 -- normal column would likely help.
 demoPersonalHistory :: PipId -> Tab.Table String String String
-demoPersonalHistory p = testPersonalHistory p
+demoPersonalHistory p = testData def
+    & LS.scan
+        (distillRatings def {excludeProvisional = True}
+            <$> allRatings)
+    & personalHistory p
     & arrangeTable
         (fmap (toZakLabel . raceIx))
         [T.unpack p]
@@ -91,7 +105,7 @@ demoPersonalHistory p = testPersonalHistory p
 -- | Sorted racer-rating pairs for a specific race (defined through
 -- 'PostProcessOptions.selectedRace', defaults to the latest race).
 runTest :: DataPreparationOptions -> PostProcessOptions -> [(PipId, Double)]
-runTest dpopts ppopts = allRatings (testData dpopts)
+runTest dpopts ppopts = LS.scan allRatings (testData dpopts)
     & maybe last (flip (!!)) (selectedRace ppopts)
     & fmap @AtRace Map.toList
     & distillRatingsAssocList ppopts

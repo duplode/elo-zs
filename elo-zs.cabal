@@ -32,11 +32,12 @@ executable elo-zs
                      , containers
                      , comonad
                      , text
-                     , data-default
+                     , data-default-class
                      , foldl
                      , profunctors
                      , tabular
                      , adjunctions
                      , distributive
+                     , semigroupoids
   -- hs-source-dirs:
   default-language:    Haskell2010

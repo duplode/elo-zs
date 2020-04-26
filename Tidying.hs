@@ -12,7 +12,7 @@ module Tidying
 
 import Types
 
-import Data.Default
+import Data.Default.Class
 
 -- | Preferences for how raw data is to be cleaned up.
 data DataPreparationOptions = DPOpts
