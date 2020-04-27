@@ -13,6 +13,7 @@ import Tidying
 import Tabular
 import Zak.Misc
 import Zak.Results
+import Util.Lone
 
 import qualified Data.Map.Strict as Map
 import Data.Ord
@@ -62,8 +63,9 @@ demoMean :: Tab.Table String String String
 demoMean = testData def
     & LS.scan
         (meanRatingPerRace
-            . distillRatings def {excludeProvisional=True}
+            . distillRatings def {excludeProvisional=False}
                 <$> allRatings)
+    & sortBy (comparing (Down . extract))
     & arrangeTable
         (fmap (toZakLabel . raceIx))
         ["Mean Rating"]
@@ -153,3 +155,39 @@ demoRanking ppopts = runTest def ppopts
         ["Racer", "Rating"]
         (\(p, rtg) -> [T.unpack p, show rtg])
 
+
+demoWeighedScores :: RaceIx -> Tab.Table String String String
+demoWeighedScores selRaceIx = testData def
+    & LS.scan weighedScores
+    & (!! selRaceIx)
+    & N.toList . extract
+    & arrangeTable
+        (fmap show . zipWith const [1..])
+        ["Racer", "Score"]
+        (\(Result p sc) -> [T.unpack p, show sc])
+
+demoWeighedSeason :: RaceIx -> Int -> Tab.Table String String String
+demoWeighedSeason start delta  = testData def
+    & LS.scan (Map.fromList . fmap (\(Result p sc) -> (p, sc))
+            . N.toList . extract
+        <$> weighedScores)
+    & sortBy (comparing (Down . snd)) . Map.toList
+        . fmap (sum . take (delta - 3) . sortBy (comparing Down))
+        . foldr (Map.unionWith (++)) Map.empty
+        . fmap (fmap (:[]))
+        . take delta . drop start
+    & arrangeTable
+        (fmap show . zipWith const [1..])
+        ["Racer", "Score"]
+        (\(p, sc) -> [T.unpack p, show sc])
+
+demoScoreHistory :: PipId -> Tab.Table String String String
+demoScoreHistory p = testData def
+    & LS.scan (fmap (map result
+                . filter (\r -> pipsqueakTag r == p) . N.toList)
+        <$> weighedScores)
+    & catMaybes . fmap (listToMaybe . codistributeL)
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        [T.unpack p]
+        ((:[]) . show . extract)

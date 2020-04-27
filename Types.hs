@@ -60,7 +60,7 @@ data Result p a = Result
                           -- jargon.
     , result :: !a        -- ^ Attained result.
     }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Functor)
 
 -- | Concrete race result.
 type Standing = Result PipId Int

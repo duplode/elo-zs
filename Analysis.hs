@@ -15,6 +15,9 @@ import Data.Profunctor
 import Control.Comonad
 import Control.Arrow
 import Data.Maybe
+import Data.Default.Class
+import qualified Data.List.NonEmpty as N
+import Control.Monad
 
 -- | Highest rating achieved by each racer, annotated with the race at which
 -- it was achieved.
@@ -131,9 +134,44 @@ distillRatings :: PostProcessOptions -> AtRace Ratings -> AtRace Ratings
 distillRatings ppopts = extend $
     \(AtRace ri rtgs) ->  Map.filter (isKeptRating ppopts ri) rtgs
 
+-- | Prototype for scoring weighed by strength.
+weighedScores
+    :: LS.Scan
+        (N.NonEmpty (Result PipId Int))
+        (AtRace (N.NonEmpty (Result PipId Double)))
+weighedScores
+    = (\str rs -> AtRace (raceIx str)
+        $ fmap @(Result _) (extract str *) <$> rs)
+            <$> strength <*> basePoints
+    where
+    basePoints = computeScores <$> returnA
+    computeScores = join
+        . fmap (\gp -> fmap @(Result _) (computeScore (length gp)) <$> gp)
+        . N.groupAllWith1 result
+    computeScore = exponentialScoring
+    strength = fmap @AtRace strengthConversion
+        . accumulatedRatings
+        . distillRatings def {excludeProvisional=False}
+        <$> allRatings
+    strengthConversion = logisticStrengthConversion
 
--- >$> :set -XOverloadedStrings
---
--- >$> demoPretty $ demoRanking def { activityCut = Just 12 }
---
--- >$> demoPretty $ demoPersonalHistory "Alan Rotoi"
+-- | Race strength on a half-logistic slope, with an accumulated rating of
+-- 15000 amounting to a 0.5 factor.
+logisticStrengthConversion :: Double -> Double
+logisticStrengthConversion s = 2 / (1 + exp (-(log 3 / 15000) * s)) - 1
+
+-- | Race strength on a linear slope, with an accumulated rating of 45000
+-- amounting to a 1.0 factor.
+linearStrengthConversion s = s / 45000
+
+-- | Scoring on an exponential curve: 24 points for the winner, 2 for the
+-- 12th place, averaging points over drawn racers.
+exponentialScoring :: Int -> Int -> Double
+exponentialScoring nDrawn rank
+    = (24 *) . exp
+        $ -(log 12 / 11)
+            * (fromIntegral rank + fromIntegral (nDrawn - 1)/2 - 1)
+-- log 12 / 11 = 0.22590060452618185 ~ log (25 / 20)
+-- log (25 / 18) = 0.32850406697203605
+-- log (10 / 6) = 0.5108256237659907
+-- log (9 / 6) = 0.4054651081081644
