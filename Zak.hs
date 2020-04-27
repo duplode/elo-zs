@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications, LambdaCase #-}
 -- |
 -- Module: Zak
 --
@@ -27,6 +27,10 @@ import Control.Comonad
 import qualified Control.Scanl as LS
 import qualified Control.Foldl as L
 import Data.Semigroupoid
+import qualified Data.List.NonEmpty as N
+import Data.List.NonEmpty (NonEmpty(..))
+import Control.Monad
+import Data.Maybe
 
 -- >$> sortBy (comparing (Down . extract . snd)) $ Map.toList $ highestPerPip (allRatings (testData def))
 demoHighest :: Tab.Table String String String
@@ -70,7 +74,7 @@ demoWindowLeaders :: Tab.Table String String String
 demoWindowLeaders = testData def
     & LS.scan
         (windowLeaders
-            . distillRatings def {activityCut=Just 12, excludeProvisional=True}
+            . distillRatings def {excludeProvisional=True}
                 <$> allRatings)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
@@ -101,6 +105,31 @@ demoPersonalHistory p = testData def
         (fmap (toZakLabel . raceIx))
         [T.unpack p]
         ((:[]) . show . extract)
+
+demoHeadToHead :: NonEmpty PipId -> Tab.Table String String String
+demoHeadToHead ps = testData def
+    & LS.scan
+        (combineAtRaces
+            . traverse personalRating ps
+            . distillRatings def {excludeProvisional = True}
+                <$> allRatings)
+    & catMaybes
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        (T.unpack <$> N.toList ps)
+        (map show . extract)
+    where
+    combineAtRaces :: NonEmpty (AtRace (Maybe a)) -> Maybe (AtRace [a])
+    combineAtRaces ys
+        = fmap (AtRace ri) . join . fmap sequenceA
+            $ foldr op (Just []) ys
+        where
+        ri = raceIx (N.head ys)
+        op x = \case
+            Just ys
+                | raceIx x == ri -> Just (extract x : ys)
+                | otherwise -> Nothing
+            Nothing -> Nothing
 
 -- | Sorted racer-rating pairs for a specific race (defined through
 -- 'PostProcessOptions.selectedRace', defaults to the latest race).
