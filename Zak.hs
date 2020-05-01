@@ -95,7 +95,8 @@ demoMeanSnap :: Tab.Table String String String
 demoMeanSnap = testData def
     & LS.scan
         (meanRatingAtSnapshot
-            . distillRatings def {activityCut=Just 12, excludeProvisional=True}
+            -- . distillRatings def{activityCut=Just 12, excludeProvisional=True}
+            . distillRatings def {activityCut=Nothing, excludeProvisional=True}
                 <$> allRatings)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
@@ -249,4 +250,7 @@ demoReinvertedStrength = testData def
 -- >$> demoCurrent & Text.Tabular.Csv.render id id id & writeFile "test.csv"
 -- >$> demoWeighedSeason 214 12 & Text.Tabular.Csv.render id id id & writeFile "test.csv"
 -- >$> demoPipCount & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- $> demoReinvertedStrength & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- >$> demoReinvertedStrength & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- >$> demoRanking def { activityCut = Just 4, selectedRace = Just 104, excludeProvisional = True } & demoPretty
+-- $> demoMeanSnap & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+
