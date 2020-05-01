@@ -17,3 +17,4 @@ dist-newstyle
 *.exe
 
 scratchpad.hs
+test.csv

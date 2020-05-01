@@ -33,7 +33,6 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Control.Monad
 import Data.Maybe
 
--- >$> sortBy (comparing (Down . extract . snd)) $ Map.toList $ highestPerPip (allRatings (testData def))
 demoHighest :: Tab.Table String String String
 demoHighest = testData def
     & L.fold
@@ -45,7 +44,6 @@ demoHighest = testData def
         ["Racer", "Race", "Rating"]
         (\(p, AtRace ri rtg) -> [T.unpack p, toZakLabel ri, show rtg])
 
--- >$> sortBy (comparing (Down . snd)) $ accumulatedRatings (allRatings (testData def))
 demoAccumulated :: Tab.Table String String String
 demoAccumulated = testData def
     & LS.scan
@@ -55,10 +53,21 @@ demoAccumulated = testData def
     & sortBy (comparing (Down . extract))
     & arrangeTable
         (fmap (toZakLabel . raceIx))
-        ["Accumulated Rating"]
-        ((:[]) . show . extract)
+        ["Ix", "Accumulated Rating"]
+        (\(AtRace ri x) -> [show ri, show x])
 
--- >$> meanRatingPerRace (allRatings (testData def))
+demoPipCount :: Tab.Table String String String
+demoPipCount = testData def
+    & LS.scan
+        (codistributeL
+            . (extract . pipCount &&& accumulatedRatings)
+            . distillRatings def {excludeProvisional=False}
+                <$> allRatings)
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        ["Ix", "Number of Racers", "Accumulated Rating"]
+        (\(AtRace ri (n, x)) -> [show ri, show n, show x])
+
 demoMean :: Tab.Table String String String
 demoMean = testData def
     & LS.scan
@@ -71,7 +80,6 @@ demoMean = testData def
         ["Mean Rating"]
         ((:[]) . show . extract)
 
--- >$> windowLeaders (allRatings (testData def))
 demoWindowLeaders :: Tab.Table String String String
 demoWindowLeaders = testData def
     & LS.scan
@@ -83,7 +91,6 @@ demoWindowLeaders = testData def
         ["Racer", "Rating"]
         (maybe ["N/A", "N/A"] (\(p, x) -> [T.unpack p, show x]) . extract)
 
--- >$> meanRatingPerSnapshot (allRatings (testData def))
 demoMeanSnap :: Tab.Table String String String
 demoMeanSnap = testData def
     & LS.scan
@@ -155,6 +162,26 @@ demoRanking ppopts = runTest def ppopts
         ["Racer", "Rating"]
         (\(p, rtg) -> [T.unpack p, show rtg])
 
+-- | Current rating and past peak rating for racers active within the last
+-- 12 races.
+demoCurrent :: Tab.Table String String String
+demoCurrent = testData def
+    -- Using a prescan for highestPerPeak is intentional, as it gives the
+    -- peak before the last update, which is an interesting information.
+    -- To check: is the composed scan here sufficiently strict?
+    & LS.scan (returnA &&& LS.prescan highestPerPip <<< ratingsFold)
+    & (fmap rating . extract *** fmap extract) . last
+    & uncurry (Map.intersectionWith (,))
+    & Map.toList
+    & sortBy (comparing (Down . snd))
+    & arrangeTable
+        (fmap show . zipWith const [1..])
+        ["Racer", "Rating", "Prev. Peak"]
+        (\(p, (rtg, pk)) -> [T.unpack p, show rtg, show pk])
+    where
+    ratingsFold
+        = distillRatings def {activityCut=Just 12, excludeProvisional=True}
+        <$> allRatings
 
 demoWeighedScores :: RaceIx -> Tab.Table String String String
 demoWeighedScores selRaceIx = testData def
@@ -166,7 +193,12 @@ demoWeighedScores selRaceIx = testData def
         ["Racer", "Score"]
         (\(Result p sc) -> [T.unpack p, show sc])
 
-demoWeighedSeason :: RaceIx -> Int -> Tab.Table String String String
+-- | Sum of weighed scores over a span of races, discarding the three worst
+-- results.
+demoWeighedSeason
+    :: RaceIx -- ^ Initial race.
+    -> Int -- ^ Number of races.
+    -> Tab.Table String String String
 demoWeighedSeason start delta  = testData def
     & LS.scan (Map.fromList . fmap (\(Result p sc) -> (p, sc))
             . N.toList . extract
@@ -191,3 +223,30 @@ demoScoreHistory p = testData def
         (fmap (toZakLabel . raceIx))
         [T.unpack p]
         ((:[]) . show . extract)
+
+demoWeighedStrength :: Tab.Table String String String
+demoWeighedStrength = testData def
+    & LS.scan weighedStrength
+    & sortBy (comparing (Down . extract))
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        ["Ix", "Strength"]
+        (\(AtRace ri x) -> [show ri, show x])
+
+demoReinvertedStrength :: Tab.Table String String String
+demoReinvertedStrength = testData def
+    & LS.scan reinvertedStrength
+    & sortBy (comparing (Down . extract))
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        ["Ix", "Strength"]
+        (\(AtRace ri x) -> [show ri, show x])
+
+-- $> :set -XOverloadedStrings
+-- $>
+-- >$>  demoHeadToHead ("dreadnaut" :| ["Overdrijf","Seeker1982"]) & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- >$> demoAccumulated & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- >$> demoCurrent & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- >$> demoWeighedSeason 214 12 & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- >$> demoPipCount & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- $> demoReinvertedStrength & Text.Tabular.Csv.render id id id & writeFile "test.csv"

@@ -82,6 +82,10 @@ accumulatedRatings = foldRatingsPerRace (lmap rating L.sum)
 meanRatingPerRace :: AtRace Ratings -> AtRace Double
 meanRatingPerRace = foldRatingsPerRace (lmap rating L.mean)
 
+-- | Number of racers per race. A race strength metric.
+pipCount :: AtRace Ratings -> AtRace Int
+pipCount = foldRatingsPerRace L.length
+
 -- | Highest rating among racers active within the last four races. A
 -- current form metric.
 windowLeaders :: AtRace Ratings -> AtRace (Maybe (PipId, Double))
@@ -135,16 +139,16 @@ distillRatings ppopts = extend $
     \(AtRace ri rtgs) ->  Map.filter (isKeptRating ppopts ri) rtgs
 
 -- | Prototype for scoring weighed by strength.
-weighedScores
+simpleWeighedScores
     :: LS.Scan
         (N.NonEmpty (Result PipId Int))
         (AtRace (N.NonEmpty (Result PipId Double)))
-weighedScores
+simpleWeighedScores
     = (\str rs -> AtRace (raceIx str)
         $ fmap @(Result _) (extract str *) <$> rs)
             <$> strength <*> basePoints
     where
-    basePoints = computeScores <$> returnA
+    basePoints = arr computeScores
     computeScores = join
         . fmap (\gp -> fmap @(Result _) (computeScore (length gp)) <$> gp)
         . N.groupAllWith1 result
@@ -158,7 +162,8 @@ weighedScores
 -- | Race strength on a half-logistic slope, with an accumulated rating of
 -- 15000 amounting to a 0.5 factor.
 logisticStrengthConversion :: Double -> Double
-logisticStrengthConversion s = 2 / (1 + exp (-(log 3 / 15000) * s)) - 1
+logisticStrengthConversion s = tanh ((log 3 / 15000) * s / 2)
+-- logisticStrengthConversion s = 2 / (1 + exp (-(log 3 / 15000) * s)) - 1
 
 -- | Race strength on a linear slope, with an accumulated rating of 45000
 -- amounting to a 1.0 factor.
@@ -175,3 +180,92 @@ exponentialScoring nDrawn rank
 -- log (25 / 18) = 0.32850406697203605
 -- log (10 / 6) = 0.5108256237659907
 -- log (9 / 6) = 0.4054651081081644
+
+weighedStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+weighedStrength = id  -- fmap @AtRace strengthConversion
+    . accumulatedRatings
+    . distillRatings def {excludeProvisional=False}
+    <$> (fmap @AtRace . preWeighing <$> returnA <*> allRatings)
+    where
+    -- Variable weighing is very similar to not having midfield weighing at
+    -- all.
+    -- preStrengthWeight = variableMidfieldWeight
+    preStrengthWeight = const fixedMidfieldWeight
+    preWeighing ress
+        = foldr (\(Result p n) f ->
+            f . Map.adjust
+                (\pipData ->
+                    pipData
+                        { rating = rating pipData
+                            * preStrengthWeight (length ress) n})
+            p) id ress
+
+
+weighedScores
+    :: LS.Scan
+        (N.NonEmpty (Result PipId Int))
+        (AtRace (N.NonEmpty (Result PipId Double)))
+weighedScores
+    = (\str rs -> AtRace (raceIx str)
+        $ fmap @(Result _) (extract str *) <$> rs)
+            <$> weighedStrength <*> basePoints
+    where
+    basePoints = arr computeScores
+    computeScores = join
+        . fmap (\gp -> fmap @(Result _) (computeScore (length gp)) <$> gp)
+        . N.groupAllWith1 result
+    computeScore = exponentialScoring
+
+
+-- | Scaled Gaussian.
+gaussian
+    :: Double  -- ^ x-scaling, as a specific distance from the center.
+    -> Double  -- ^ Relative steepness (y-ratio at x-scaling from the peak).
+    -> Double  -- ^ Peak location, center of the curve.
+    -> Double  -- ^ x value.
+    -> Double
+gaussian d s c x = exp (-(x - c)^2 / w)
+    where
+    w = - d^2 / log s  -- sigma = - d / (2 * sqrt (ln s))
+
+-- | Scaled witch of Agnesi.
+witch
+    :: Double  -- ^ x-scaling, as a specific distance from the center.
+    -> Double  -- ^ Relative steepness (y-ratio at x-scaling from the peak).
+    -> Double  -- ^ Peak location, center of the curve.
+    -> Double  -- ^ x value.
+    -> Double
+witch d s c x = 1 / (b * (x - c)^2 + 1)
+    where
+    b = (1 - s) / (s * d^2)
+
+
+fixedMidfieldWeight
+    :: Int  -- ^ Race standing.
+    -> Double
+fixedMidfieldWeight x = gaussian 5 (2/5) 6 (fromIntegral x)
+
+altFixedMidfieldWeight
+    :: Int  -- ^ Race standing.
+    -> Double
+altFixedMidfieldWeight x = witch 6 (1/2) 6 (fromIntegral x)
+
+variableMidfieldWeight
+    :: Int  -- ^ Number of racers.
+    -> Int  -- ^ Race standing.
+    -> Double
+variableMidfieldWeight n x = gaussian (peak - 1) (2/5) peak (fromIntegral x)
+    where
+    peak = (2 / 5) * fromIntegral n
+
+reinvertedStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+reinvertedStrength = id  -- fmap @AtRace strengthConversion
+    . reinvertedRatings
+    . distillRatings def {excludeProvisional=False}
+    <$> allRatings
+    where
+    reinvertedRatings
+        = foldRatingsPerRace (lmap (invExpected . rating) L.product)
+    invExpected r = 1 + 10**((r - r0)/400)
+    r0 = 1500
+
