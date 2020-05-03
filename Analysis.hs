@@ -263,9 +263,11 @@ reinvertedStrength = id  -- fmap @AtRace strengthConversion
     . reinvertedRatings
     . distillRatings def {excludeProvisional=False}
     <$> allRatings
+
+reinvertedRatings :: AtRace Ratings -> AtRace Double
+reinvertedRatings
+    = foldRatingsPerRace (lmap (invExpected . rating) L.product)
     where
-    reinvertedRatings
-        = foldRatingsPerRace (lmap (invExpected . rating) L.product)
     invExpected r = 1 + 10**((r - r0)/400)
     r0 = 1500
 

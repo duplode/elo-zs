@@ -60,12 +60,12 @@ demoPipCount :: Tab.Table String String String
 demoPipCount = testData def
     & LS.scan
         (codistributeL
-            . (extract . pipCount &&& accumulatedRatings)
+            . (extract . pipCount &&& fmap log . reinvertedRatings)
             . distillRatings def {excludeProvisional=False}
                 <$> allRatings)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
-        ["Ix", "Number of Racers", "Accumulated Rating"]
+        ["Ix", "Number of Racers", "Strength"]
         (\(AtRace ri (n, x)) -> [show ri, show n, show x])
 
 demoMean :: Tab.Table String String String
@@ -245,12 +245,13 @@ demoReinvertedStrength = testData def
 
 -- $> :set -XOverloadedStrings
 -- $>
--- >$>  demoHeadToHead ("dreadnaut" :| ["Overdrijf","Seeker1982"]) & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- $>  demoHeadToHead ("Alan Rotoi" :| ["Bonzai Joe","CTG"]) & Text.Tabular.Csv.render id id id & writeFile "test.csv"
 -- >$> demoAccumulated & Text.Tabular.Csv.render id id id & writeFile "test.csv"
 -- >$> demoCurrent & Text.Tabular.Csv.render id id id & writeFile "test.csv"
 -- >$> demoWeighedSeason 214 12 & Text.Tabular.Csv.render id id id & writeFile "test.csv"
 -- >$> demoPipCount & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- >$> demoWeighedStrength & Text.Tabular.Csv.render id id id & writeFile "test.csv"
 -- >$> demoReinvertedStrength & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- >$> demoRanking def { activityCut = Just 4, selectedRace = Just 104, excludeProvisional = True } & demoPretty
--- $> demoMeanSnap & Text.Tabular.Csv.render id id id & writeFile "test.csv"
+-- >$> demoRanking def { activityCut = Just 4, selectedRace = Just 51, excludeProvisional = False } & demoPretty
+-- >$> demoMeanSnap & Text.Tabular.Csv.render id id id & writeFile "test.csv"
 
