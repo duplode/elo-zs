@@ -243,15 +243,3 @@ demoReinvertedStrength = testData def
         ["Ix", "Strength"]
         (\(AtRace ri x) -> [show ri, show x])
 
--- $> :set -XOverloadedStrings
--- $>
--- $>  demoHeadToHead ("Alan Rotoi" :| ["Bonzai Joe","CTG"]) & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- >$> demoAccumulated & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- >$> demoCurrent & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- >$> demoWeighedSeason 214 12 & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- >$> demoPipCount & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- >$> demoWeighedStrength & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- >$> demoReinvertedStrength & Text.Tabular.Csv.render id id id & writeFile "test.csv"
--- >$> demoRanking def { activityCut = Just 4, selectedRace = Just 51, excludeProvisional = False } & demoPretty
--- >$> demoMeanSnap & Text.Tabular.Csv.render id id id & writeFile "test.csv"
-

@@ -16,6 +16,7 @@ dist-newstyle
 
 *.exe
 
-scratchpad.hs
+Scratchpad.hs
+Scratchpad2.hs
 test.csv
 .~*

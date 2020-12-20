@@ -51,13 +51,19 @@ faceOff x y = FaceOff
 -- | Given race results for multiple racers, generate all one-on-one matches
 -- between them. Each combination of two players generates one match.
 toFaceOffs :: Ord a => NE.NonEmpty (Result p a) -> [FaceOff p]
-toFaceOffs xs = concat . transpose . NE.toList
+toFaceOffs xs = concat . transpose
+    -- No more than six matches per driver per race on either side of the
+    -- scoreboard. This restriction helps keeping outlier results and racer
+    -- number variations from having an exaggerated effect on the rankings.
+    . map (take 6)
+    . NE.toList
     $ xs =>> \(y :| ys) -> faceOff y <$> ys
--- The match matrix is transposed before concatenation so that, when the
--- matches are used to calculate the rating deltas, matches between
--- neighbours on the scoreboard are handled first. Rating updates are not
--- commutative. In particular, it appears that handling neighoburs first
--- helps to tame rating spikes from atypical results.
+-- The match matrix is transposed before concatenation so that, if we choose
+-- not to batch matches per race, when the matches are used to calculate the
+-- rating deltas matches between neighbours on the scoreboard are handled
+-- first. Rating updates are not commutative. In particular, it appears that
+-- handling neighoburs first helps to tame rating spikes from atypical
+-- results.
 
 -- | Difference between expected and actual scores for a match. Positive if
 -- the score was higher than what was expected.
@@ -93,13 +99,13 @@ updateRatings (AtRace ri rtgs) =
     -- that the corresponding AtRace field is strict.
     where
     -- | Modulation (or, as Glickman puts it, attenuation) factor for rating
-    -- changes. The chosen value, 16, is lower than the standard one for
-    -- chess, 24, in order to compensate for the high number of matches in a
-    -- typical race.
-    kBase = 16
+    -- changes. A value, such as 16, lower than the standard one for chess, 24
+    -- might be used to compensate for the high number of matches in a typical
+    -- race.
+    kBase = 24
     -- | Players with provisional ratings have a higher modulation factor, so
     -- that their ratings converge more quickly.
-    kHi = 32
+    kHi = 48
     -- | Opponents of players with provisional ratings have a lower
     -- modulation factor, so that their ratings are less affected by matches
     -- against players with uncertain ratings.
@@ -108,7 +114,7 @@ updateRatings (AtRace ri rtgs) =
     -- cause a net change on the accumulated rating of the player pool. On
     -- why that is less of a problem than it might seem at first, see
     -- Glickman (1995), p. 36.
-    kLo = 8
+    kLo = 12
     -- | Initial rating for new players.
     defRating = 1500
     -- | Index of the current event.
@@ -167,7 +173,7 @@ finalRatings
     :: Ord p
     => L.Fold (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
 finalRatings = L.Fold
-    (\ar xs -> updateRatings ar (toFaceOffs xs))
+    (\ar xs -> updateRatingsSimple ar (toFaceOffs xs))
     (AtRace 0 Map.empty)
     id
 
@@ -193,13 +199,11 @@ updateRatingsSimple (AtRace ri rtgs) =
     -- that the corresponding AtRace field is strict.
     where
     -- | Modulation (or, as Glickman puts it, attenuation) factor for rating
-    -- changes. The chosen value, 16, is lower than the standard one for
-    -- chess, 24, in order to compensate for the high number of matches in a
-    -- typical race.
-    kBase = 16
+    -- changes.
+    kBase = 24
     -- | Players with provisional ratings have a higher modulation factor, so
     -- that their ratings converge more quickly.
-    kHi = 32
+    kHi = 48
     -- | Opponents of players with provisional ratings have a lower
     -- modulation factor, so that their ratings are less affected by matches
     -- against players with uncertain ratings.
@@ -208,7 +212,7 @@ updateRatingsSimple (AtRace ri rtgs) =
     -- cause a net change on the accumulated rating of the player pool. On
     -- why that is less of a problem than it might seem at first, see
     -- Glickman (1995), p. 36.
-    kLo = 8
+    kLo = 12
     -- | Initial rating for new players.
     defRating = 1500
     -- | Index of the current event.
