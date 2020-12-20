@@ -27,6 +27,58 @@ import qualified Control.Foldl as L
 import qualified Control.Scanl as LS
 import Data.List
 
+-- Key configuration variables for the engine.
+
+-- | Modulation (or, as Glickman puts it, attenuation) factor for rating
+-- changes. A value, such as 16, lower than the standard one for chess, 24
+-- might be used to compensate for the high number of matches in a typical
+-- race.
+kBase :: Double
+kBase = 24
+
+-- | Players with provisional ratings have a higher modulation factor, so
+-- that their ratings converge more quickly.
+kHi :: Double
+kHi = kBase * 2
+
+-- | Opponents of players with provisional ratings have a lower
+-- modulation factor, so that their ratings are less affected by matches
+-- against players with uncertain ratings.
+--
+-- Using different modulation factors in a single match means a match can
+-- cause a net change on the accumulated rating of the player pool. On
+-- why that is less of a problem than it might seem at first, see
+-- Glickman (1995), p. 36.
+kLo :: Double
+kLo = kBase / 2
+
+-- | Initial rating for new players.
+defRating :: Double
+defRating = 1500
+
+-- | How many positions above and below each racer on the scoreboard should be
+-- used to arrange matches. If 'Nothing', use all possible matches.
+--
+-- This cutoff for remote matches helps keeping outlier results and racer
+-- number variations from having an exaggerated effect on the rankings.
+remoteCutoff :: Maybe Int
+remoteCutoff = Just 6
+
+-- | A flag for Whether to batch rating updates for a race (that is, to use
+-- the ratings before the race for all matches) or not (that is, to update
+-- ratings on the fly after each match is processed).
+--
+-- Batching is arguably the more orthodox way of processing matches. Turning
+-- off batching tends to slow down rating swings to some extent, as if
+-- compensating for the correlation between results of matches involving the
+-- same racer in a race.
+data BatchingStrategy = Batching | NoBatching
+
+-- | Which batching strategy to use.
+batchingStrategy :: BatchingStrategy
+batchingStrategy = Batching
+
+
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
 wdlScore = \case
@@ -52,18 +104,14 @@ faceOff x y = FaceOff
 -- between them. Each combination of two players generates one match.
 toFaceOffs :: Ord a => NE.NonEmpty (Result p a) -> [FaceOff p]
 toFaceOffs xs = concat . transpose
-    -- No more than six matches per driver per race on either side of the
-    -- scoreboard. This restriction helps keeping outlier results and racer
-    -- number variations from having an exaggerated effect on the rankings.
-    . map (take 6)
+    . maybe id (map . take) remoteCutoff
     . NE.toList
     $ xs =>> \(y :| ys) -> faceOff y <$> ys
 -- The match matrix is transposed before concatenation so that, if we choose
--- not to batch matches per race, when the matches are used to calculate the
--- rating deltas matches between neighbours on the scoreboard are handled
--- first. Rating updates are not commutative. In particular, it appears that
--- handling neighoburs first helps to tame rating spikes from atypical
--- results.
+-- not to batch matches per race, matches between neighbours on the scoreboard
+-- are handled first when the matches are used to calculate the rating deltas.
+-- Rating updates are not commutative. In particular, it appears that handling
+-- neighbours first helps to tame rating spikes from atypical results.
 
 -- | Difference between expected and actual scores for a match. Positive if
 -- the score was higher than what was expected.
@@ -98,25 +146,6 @@ updateRatings (AtRace ri rtgs) =
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
     where
-    -- | Modulation (or, as Glickman puts it, attenuation) factor for rating
-    -- changes. A value, such as 16, lower than the standard one for chess, 24
-    -- might be used to compensate for the high number of matches in a typical
-    -- race.
-    kBase = 24
-    -- | Players with provisional ratings have a higher modulation factor, so
-    -- that their ratings converge more quickly.
-    kHi = 48
-    -- | Opponents of players with provisional ratings have a lower
-    -- modulation factor, so that their ratings are less affected by matches
-    -- against players with uncertain ratings.
-    --
-    -- Using different modulation factors in a single match means a match can
-    -- cause a net change on the accumulated rating of the player pool. On
-    -- why that is less of a problem than it might seem at first, see
-    -- Glickman (1995), p. 36.
-    kLo = 12
-    -- | Initial rating for new players.
-    defRating = 1500
     -- | Index of the current event.
     ri' = ri + 1
 
@@ -173,9 +202,13 @@ finalRatings
     :: Ord p
     => L.Fold (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
 finalRatings = L.Fold
-    (\ar xs -> updateRatingsSimple ar (toFaceOffs xs))
+    (\ar xs -> update ar (toFaceOffs xs))
     (AtRace 0 Map.empty)
     id
+    where
+    update = case batchingStrategy of
+        Batching -> updateRatingsSimple
+        NoBatching -> updateRatings
 
 -- | Calculates ratings for all players after each event.
 allRatings
@@ -198,23 +231,6 @@ updateRatingsSimple (AtRace ri rtgs) =
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
     where
-    -- | Modulation (or, as Glickman puts it, attenuation) factor for rating
-    -- changes.
-    kBase = 24
-    -- | Players with provisional ratings have a higher modulation factor, so
-    -- that their ratings converge more quickly.
-    kHi = 48
-    -- | Opponents of players with provisional ratings have a lower
-    -- modulation factor, so that their ratings are less affected by matches
-    -- against players with uncertain ratings.
-    --
-    -- Using different modulation factors in a single match means a match can
-    -- cause a net change on the accumulated rating of the player pool. On
-    -- why that is less of a problem than it might seem at first, see
-    -- Glickman (1995), p. 36.
-    kLo = 12
-    -- | Initial rating for new players.
-    defRating = 1500
     -- | Index of the current event.
     ri' = ri + 1
 
