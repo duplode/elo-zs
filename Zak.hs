@@ -243,3 +243,11 @@ demoReinvertedStrength = testData def
         ["Ix", "Strength"]
         (\(AtRace ri x) -> [show ri, show x])
 
+demoPerfStrength :: Tab.Table String String String
+demoPerfStrength = testData def
+    & LS.scan perfStrength
+    & sortBy (comparing (Down . extract))
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        ["Ix", "Strength"]
+        (\(AtRace ri x) -> [show ri, show x])

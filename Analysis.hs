@@ -6,6 +6,7 @@ import Types
 import Engine
 import Tidying
 import Util.Lone
+import Analysis.PerfModel
 
 import qualified Data.Map.Strict as Map
 import Data.Ord
@@ -272,3 +273,12 @@ reinvertedRatings
     invExpected r = 1 + 10**((r - r0)/400)
     r0 = 1500
 
+perfStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+perfStrength = id
+    . fmap @AtRace (perfModelStrength . map rating . Map.elems)
+    . extend (\(AtRace ri rtgs)
+        -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
+    . distillRatings def {excludeProvisional=False}
+    <$> allRatings
+    where
+    isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
