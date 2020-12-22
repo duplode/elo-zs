@@ -260,6 +260,7 @@ variableMidfieldWeight n x = gaussian (peak - 1) (2/5) peak (fromIntegral x)
 
 reinvertedStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
 reinvertedStrength = id  -- fmap @AtRace strengthConversion
+    . fmap (logBase 10)
     . reinvertedRatings
     . distillRatings def {excludeProvisional=False}
     <$> allRatings
