@@ -7,6 +7,7 @@ import Engine
 import Tidying
 import Util.Lone
 import Analysis.PerfModel
+import Analysis.Simulation
 
 import qualified Data.Map.Strict as Map
 import Data.Ord
@@ -282,3 +283,18 @@ perfStrength = id
     <$> allRatings
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
+
+simStrength
+    :: Int  -- ^ Number of simulation runs per race.
+    -> LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
+simStrength nRuns =
+    LS.arrM runSimsForRace <<< LS.generalize basicScan
+    where
+    isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
+    basicScan = extend (\(AtRace ri rtgs)
+            -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
+        . distillRatings def {excludeProvisional=False}
+        <$> allRatings
+    runSimsForRace = codistributeL . fmap @AtRace (simModelStrength nRuns)
+        <=< (\ar -> putStrLn ("Runs for race #" ++ show (raceIx ar))
+            >> return ar)

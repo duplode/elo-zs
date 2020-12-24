@@ -251,3 +251,15 @@ demoPerfStrength = testData def
         (fmap (toZakLabel . raceIx))
         ["Ix", "Strength"]
         (\(AtRace ri x) -> [show ri, show x])
+
+demoSimStrength :: Int -> IO (Tab.Table String String String)
+demoSimStrength nRuns = testData def
+    -- TODO: 10000 runs per race looks like a reasonable figure for reasonably
+    -- sensible results. That might take some 20 or 60 minutes.
+    & LS.scanM (simStrength nRuns)
+    >>= \res -> res & sortBy (comparing (Down . extract))
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        ["Ix", "Strength"]
+        (\(AtRace ri x) -> [show ri, show x])
+    & return
