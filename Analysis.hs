@@ -285,9 +285,9 @@ perfStrength = id
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
 
 simStrength
-    :: Int  -- ^ Number of simulation runs per race.
+    :: SimOptions
     -> LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
-simStrength nRuns =
+simStrength simOpts =
     LS.arrM runSimsForRace <<< LS.generalize basicScan
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
@@ -295,6 +295,6 @@ simStrength nRuns =
             -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
         . distillRatings def {excludeProvisional=False}
         <$> allRatings
-    runSimsForRace = codistributeL . fmap @AtRace (simModelStrength nRuns)
+    runSimsForRace = codistributeL . fmap @AtRace (simModelStrength simOpts)
         <=< (\ar -> putStrLn ("Runs for race #" ++ show (raceIx ar))
             >> return ar)
