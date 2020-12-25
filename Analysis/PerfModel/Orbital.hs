@@ -78,7 +78,28 @@ interpol = NodeList.fromList (zip rs ks)
 -- | rating-to-k conversion (see step 4 in the Analysis.PerfModel
 -- introduction).Workable input ratings range from -150 to 3500
 kFromRating :: Double -> Double
-kFromRating r = Piecewise.interpolate Interpolation.Type.linear interpol r
+kFromRating = kFromRatingI
+
+kFromRatingI :: Double -> Double
+kFromRatingI r = Piecewise.interpolate Interpolation.Type.linear interpol r
+
+-- | Alternative implementation of rating-to-k conversion, using root
+-- finding rather than interpolation.
+kFromRatingR :: Double -> Double
+kFromRatingR rv =
+    case ridders def range fCrossing of
+        NotBracketed -> error $ errPfx ++ "fCrossing is not bracketed"
+        SearchFailed -> error $ errPfx ++ "convergence failure"
+        Root t -> t
+    where
+    -- Factoid: exp (1800/400) ~ 90
+    ru = 1800
+    u = 90
+    -- The range is suitable for rv between -inf and ~50000, which should
+    -- suffice for most practical purposes.
+    range = (0, max 50 (exp ((5/4) * rv/400)))
+    fCrossing v = perfWP u v - eloWP ru rv
+    errPfx = "Analysis.PerfModel.Orbital.kFromRating: "
 
 newtype OrbitalDistribution = OrbitalDistribution { orbitalK :: Double }
     deriving (Eq, Show, Ord)

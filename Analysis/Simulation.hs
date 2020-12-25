@@ -122,6 +122,8 @@ example = bimap SimPip OrbitalDistribution
 
 -- $> :set -XOverloadedStrings
 -- $>
+-- $> :set +s
+-- $>
 -- $> simulateSingleRace example
 --
--- >$> runExperiment 10000 example
+-- >$> runExperimentFull 10000 example
