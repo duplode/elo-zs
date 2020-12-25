@@ -16,9 +16,9 @@ module Analysis.PerfModel.Orbital
     , OrbitalDistribution(..)
     ) where
 
-import qualified Numeric.Interpolation.NodeList as NodeList
-import qualified Numeric.Interpolation.Type as Interpolation.Type
-import qualified Numeric.Interpolation.Piecewise as Piecewise
+--import qualified Numeric.Interpolation.NodeList as NodeList
+--import qualified Numeric.Interpolation.Type as Interpolation.Type
+--import qualified Numeric.Interpolation.Piecewise as Piecewise
 import Numeric.RootFinding
 import Statistics.Distribution
 
@@ -68,35 +68,20 @@ ratingFromK v = ru + (400 / log 10)
     ru = 1800
     u = 90
 
--- | rating-to-k interpolator in the [0..5000] range.
-interpol :: NodeList.T Double Double
-interpol = NodeList.fromList (zip rs ks)
-    where
-    rs = ratingFromK <$> ks
-    ks = [0..5000]
-
 -- | rating-to-k conversion (see step 4 in the Analysis.PerfModel
--- introduction).Workable input ratings range from -150 to 3500
+-- introduction). Implemented through numerical root finding. The usable
+-- range of inputs is between -inf and ~50000, which should suffice for
+-- most practical purposes.
 kFromRating :: Double -> Double
-kFromRating = kFromRatingI
-
-kFromRatingI :: Double -> Double
-kFromRatingI r = Piecewise.interpolate Interpolation.Type.linear interpol r
-
--- | Alternative implementation of rating-to-k conversion, using root
--- finding rather than interpolation.
-kFromRatingR :: Double -> Double
-kFromRatingR rv =
+kFromRating rv =
     case ridders def range fCrossing of
         NotBracketed -> error $ errPfx ++ "fCrossing is not bracketed"
         SearchFailed -> error $ errPfx ++ "convergence failure"
         Root t -> t
     where
-    -- Factoid: exp (1800/400) ~ 90
     ru = 1800
     u = 90
-    -- The range is suitable for rv between -inf and ~50000, which should
-    -- suffice for most practical purposes.
+    -- Factoid: exp (1800/400) ~ 90
     range = (0, max 50 (exp ((5/4) * rv/400)))
     fCrossing v = perfWP u v - eloWP ru rv
     errPfx = "Analysis.PerfModel.Orbital.kFromRating: "

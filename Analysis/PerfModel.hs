@@ -37,9 +37,6 @@ module Analysis.PerfModel
 
 import Analysis.PerfModel.Orbital
 
-import qualified Numeric.Interpolation.NodeList as NodeList
-import qualified Numeric.Interpolation.Type as Interpolation.Type
-import qualified Numeric.Interpolation.Piecewise as Piecewise
 import qualified Numeric.Integration.TanhSinh as Integration
 
 import Data.Profunctor

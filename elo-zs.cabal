@@ -42,7 +42,6 @@ executable elo-zs
                      , adjunctions
                      , distributive
                      , semigroupoids
-                     , interpolation
                      , integration
                      , statistics
                      , math-functions
