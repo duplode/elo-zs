@@ -41,7 +41,7 @@ import Control.Comonad
 -- brought to 'Data.Functor.Adjunction'.
 --
 -- @Lone@ functors are all 'Comonad's. If we were creating the actual @Lone@
--- class, we might choose not to add it as a superclass, to its free users
+-- class, we might choose not to add it as a superclass, to free its users
 -- from providing @Comonad@ instances. In our concrete use case, though, we
 -- will also use the @Comonad@ interface, so we might as well leave the
 -- constraint in.

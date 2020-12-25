@@ -15,6 +15,7 @@ module Analysis.Simulation
 
 import Types
 import Analysis.PerfModel.Orbital
+import Util.Lone (surroundL)
 
 import System.Random.MWC
 import Statistics.Distribution
@@ -52,11 +53,11 @@ toSimPips probes rtgs = map (second (OrbitalDistribution . kFromRating))
 simulator
     :: [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
     -> Producer [SimEntry] IO ()         -- ^ Identifications and laptime deltas.
-simulator pips = P.repeatM $ do
-    g <- createSystemRandom
-    results <- sequenceA
-        . fmap (sequenceA . second (flip genContVar g)) $ pips
-    return $ zipWith (uncurry SimEntry) (sortBy (comparing snd) results) [1..]
+simulator pips = do
+    g <- liftIO createSystemRandom
+    P.repeatM $ do
+        results <- traverse (surroundL (flip genContVar g)) $ pips
+        return $ zipWith (uncurry SimEntry) (sortBy (comparing snd) results) [1..]
 
 -- | Generates results of a single race.
 simulateSingleRace
@@ -124,6 +125,6 @@ example = bimap SimPip OrbitalDistribution
 -- $>
 -- $> :set +s
 -- $>
--- $> simulateSingleRace example
+-- >$> simulateSingleRace example
 --
--- >$> runExperimentFull 10000 example
+-- $> runExperimentFull 10000 example
