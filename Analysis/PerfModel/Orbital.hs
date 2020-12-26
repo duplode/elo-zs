@@ -37,14 +37,21 @@ perfWP u v = (u^5 + 5*u^4*v + 10*u^3*v^2) / (u + v)^5
 eloWP :: Double -> Double -> Double
 eloWP ru rv = 1 / (1 + 10**(-(ru-rv)/400))
 
+referenceRating :: Double
+referenceRating = 1800
+
+-- Factoid: exp (1800/400) ~ 90
+referenceK :: Double
+referenceK = 9
+
 -- | k-to-rating conversion (see step 3 in the Analysis.PerfModel
 -- introduction).
 ratingFromK :: Double -> Double
 ratingFromK v = ru + (400 / log 10)
     * log ((10*u^2*v^3 + 5*u*v^4 + v^5) / (u^5 + 5*u^4*v + 10*u^3*v^2))
     where
-    ru = 1800
-    u = 90
+    ru = referenceRating
+    u = referenceK
 
 -- | rating-to-k conversion (see step 4 in the Analysis.PerfModel
 -- introduction). Implemented through numerical root finding. The usable
@@ -57,10 +64,9 @@ kFromRating rv =
         SearchFailed -> error $ errPfx ++ "convergence failure"
         Root t -> t
     where
-    ru = 1800
-    u = 90
-    -- Factoid: exp (1800/400) ~ 90
-    range = (0, max 50 (exp ((5/4) * rv/400)))
+    ru = referenceRating
+    u = referenceK
+    range = (0, max 5 (exp ((5/4) * rv/400) / 10))
     fCrossing v = perfWP u v - eloWP ru rv
     errPfx = "Analysis.PerfModel.Orbital.kFromRating: "
 
