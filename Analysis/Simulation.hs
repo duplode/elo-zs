@@ -32,7 +32,6 @@ import Data.Ord
 import Pipes
 import qualified Pipes.Prelude as P
 import Data.Default.Class
-import Data.IORef
 import Control.Monad.State.Strict
 
 -- | Racer identification. The type is augmented by testing probes.
@@ -56,7 +55,9 @@ toSimPips probes rtgs = map (second (orbitalDistr . kFromRating))
     $ map (first Probe) probes
     ++ map (bimap SimPip rating) (Map.assocs rtgs)
 
--- | Stream of simulated race results.
+-- | Infinite stream of simulated race results. If the number of runs that
+-- will be used is known in advance, it is slightly less efficient than
+-- 'simulatorN', as it has to save the generator state after each run.
 simulator
     :: [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
     -> Producer [SimEntry] SimM ()       -- ^ Identifications and laptime deltas.
@@ -69,12 +70,31 @@ simulator pips = do
         put newSeed
         return $ zipWith (uncurry SimEntry) (sortBy (comparing snd) results) [1..]
 
+-- | Stream of a finite number of simulated results. The updated generator
+-- seed is used as the return value to make it harder to discard it
+-- accidentally by interrupting the stream. For interrupting the stream, use
+-- 'void' to discard the return value, or switch to 'simulator' if it is
+-- important to update the generator state.
+simulatorN
+    :: Int                               -- ^ Number of simulations
+    -> [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
+    -> Producer [SimEntry] SimM Seed     -- ^ Identifications and laptime deltas.
+simulatorN nRuns pips = do
+    seed <- get
+    g <- liftIO $ restore seed
+    P.replicateM nRuns $ do
+        results <- liftIO $ traverse (surroundL (flip genContVar g)) pips
+        return $ zipWith (uncurry SimEntry) (sortBy (comparing snd) results) [1..]
+    newSeed <- liftIO $ save g
+    put newSeed
+    return newSeed
+
 -- | Generates results of a single race.
 simulateSingleRace
     :: [(SimPip, OrbitalDistribution)]  -- ^ Identifications and performance models.
     -> SimM [SimEntry]                  -- ^ Identifications and laptime deltas.
 simulateSingleRace pips = do
-    P.head (simulator pips) >>= \case
+    P.head (void $ simulatorN 1 pips) >>= \case
         Just res -> return res
         Nothing -> error "Analysis.Simulation: simulator exhausted"
 
@@ -84,10 +104,10 @@ runExperimentFull
     :: Int                              -- ^ Number of runs.
     -> [(SimPip, OrbitalDistribution)]  -- ^ Identifications and performance models.
     -> SimM (Map (SimPip, Int) Int)     -- ^ Count of racer-rank pairs.
-runExperimentFull nRuns pips = P.fold updateCount counters id entries
+runExperimentFull nRuns pips = fst <$> P.fold' updateCount counters id entries
     where
     counters = Map.empty
-    entries = simulator pips >-> P.take nRuns >-> P.mapFoldable id
+    entries = simulatorN nRuns pips >-> P.mapFoldable id
     updateCount ctrs se =
         Map.alter (maybe (Just 1) (Just . (+ 1))) (simPip se, pipRank se) ctrs
 
@@ -99,10 +119,10 @@ runExperimentPip
     -> [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
     -> SimM (Map Int Int)                -- ^ Count of racer-rank pairs.
 runExperimentPip nRuns selPip pips =
-    P.fold updateCount counters id entries
+    fst <$> P.fold' updateCount counters id entries
     where
     counters = Map.empty
-    entries = simulator pips >-> P.take nRuns >-> P.mapFoldable id
+    entries = simulatorN nRuns pips >-> P.mapFoldable id
         >-> P.filter ((selPip ==) . simPip)
     updateCount ctrs se =
         Map.alter (maybe (Just 1) (Just . (+ 1))) (pipRank se) ctrs
