@@ -47,7 +47,7 @@ toSimPips
     :: [(Int, Double)]                 -- ^ Identifications and ratings of the probes.
     -> Ratings                         -- ^ Ratings map from the engine.
     -> [(SimPip, OrbitalDistribution)] -- ^ Identifications and performance models.
-toSimPips probes rtgs = map (second (OrbitalDistribution . kFromRating))
+toSimPips probes rtgs = map (second (orbitalDistr . kFromRating))
     $ map (first Probe) probes
     ++ map (bimap SimPip rating) (Map.assocs rtgs)
 
@@ -116,7 +116,7 @@ runExperimentProbe simOpts pips =
     where
     seed = simSeed simOpts
     nRuns = simRuns simOpts
-    probeModel = OrbitalDistribution (kFromRating (simProbeRating simOpts))
+    probeModel = orbitalDistr (kFromRating (simProbeRating simOpts))
     probeId = Probe 0
 
 simModelStrength :: SimOptions -> Ratings -> IO Double
@@ -150,7 +150,7 @@ instance Default SimOptions where
         , simRuns = 10000
         }
 
-example = bimap SimPip OrbitalDistribution
+example = bimap SimPip orbitalDistr
     <$> [("HAM", 250), ("BOT", 143), ("VER", 215), ("VET", 190), ("STR", 120)]
 
 -- $> :set -XOverloadedStrings

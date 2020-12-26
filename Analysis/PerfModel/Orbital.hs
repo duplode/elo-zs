@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 -- |
 -- Module Analysis.PerfModel.Orbital
 --
@@ -6,6 +7,9 @@
 -- In the PDF, t = 0 is taken to be the ideal laptime in a track. The PDF
 -- rises from zero at t = 0, reaches a peak and then tapers off asymptotically
 -- to zero.
+--
+-- The name "orbital" alludes to this PDF being, modulo constant factors, the
+-- radial probability density of the 1s hydrogen atom orbital.
 module Analysis.PerfModel.Orbital
     ( orbitalPDF
     , orbitalCDF
@@ -13,42 +17,16 @@ module Analysis.PerfModel.Orbital
     , eloWP
     , kFromRating
     , ratingFromK
-    , OrbitalDistribution(..)
+    , OrbitalDistribution
+    , orbitalDistr
+    , orbitalK
     ) where
 
---import qualified Numeric.Interpolation.NodeList as NodeList
---import qualified Numeric.Interpolation.Type as Interpolation.Type
---import qualified Numeric.Interpolation.Piecewise as Piecewise
 import Numeric.RootFinding
 import Statistics.Distribution
+import Statistics.Distribution.Gamma
 
 import Data.Default.Class
-
--- | PDF of the performance model.
-orbitalPDF :: Double -> Double -> Double
-orbitalPDF k t = 4 * k^3 * t^2 * exp (-2*k*t)
-
--- | CDF of the performance model.
-orbitalCDF :: Double -> Double -> Double
-orbitalCDF k t = 1 - (2  * (k*t + 1) * k*t + 1) * exp (-2*k*t)
-
--- | Quantiles of the performance model.
-orbitalQuantile :: Double -> Double -> Double
-orbitalQuantile k p
-    | p == 0 = 0
-    | p == 1 = inf
-    -- The "not bracketed" error can happen if p is too large and k is too
-    -- low. Setting the upper bound of the root finding algorithm at 100/k
-    -- appears sufficient to stave that off.
-    | p > 0 && p < 1 = case ridders def (0, 100/k) (fCrossing p) of
-        NotBracketed -> error $ errPfx ++ "fCrossing is not bracketed"
-        SearchFailed -> error $ errPfx ++ "convergence failure"
-        Root t -> t
-    | otherwise = error $ errPfx ++ "p outside of [0, 1] range"
-    where
-    inf = 1/0
-    fCrossing p t = orbitalCDF k t - p
-    errPfx = "Analysis.PerfModel.Orbital.orbitalQuantile: "
 
 -- | Winning probability of a racer with k = u against a racer with k = v,
 -- according to the performance model.
@@ -86,15 +64,52 @@ kFromRating rv =
     fCrossing v = perfWP u v - eloWP ru rv
     errPfx = "Analysis.PerfModel.Orbital.kFromRating: "
 
-newtype OrbitalDistribution = OrbitalDistribution { orbitalK :: Double }
-    deriving (Eq, Show, Ord)
+-- | The model distribution is a special case of the gamma distribution, with
+-- k = 3 and theta = 1/(2*k).
+newtype OrbitalDistribution = OrbitalDistribution
+    { orbitalGamma :: GammaDistribution }
+    deriving (Eq, Show, Distribution, ContDistr, ContGen, MaybeEntropy
+        , Variance, MaybeVariance, Mean, MaybeMean)
 
-instance Distribution OrbitalDistribution where
-    cumulative = orbitalCDF . orbitalK
+-- | Sets up the model distribution given a k factor.
+orbitalDistr
+    :: Double -- ^ k factor of the model.
+    -> OrbitalDistribution
+orbitalDistr k = OrbitalDistribution (gammaDistr 3 (1/(2*k)))
 
-instance ContDistr OrbitalDistribution where
-    density = orbitalCDF . orbitalK
-    quantile = orbitalQuantile . orbitalK
+-- | Recovers the k factor from the distribution.
+orbitalK :: OrbitalDistribution -> Double
+orbitalK distr = 1 / (2 * gdScale (orbitalGamma distr))
 
-instance ContGen OrbitalDistribution where
-    genContVar = genContinuous
+
+
+-- | PDF of the performance model. Only here for reference, as the actual
+-- implementation is in terms of 'Statistics.Distribution.Gamma'.
+orbitalPDF :: Double -> Double -> Double
+orbitalPDF k t = 4 * k^3 * t^2 * exp (-2*k*t)
+
+-- | CDF of the performance model. Only here for reference, as the actual
+-- implementation is in terms of 'Statistics.Distribution.Gamma'.
+orbitalCDF :: Double -> Double -> Double
+orbitalCDF k t = 1 - (2  * (k*t + 1) * k*t + 1) * exp (-2*k*t)
+
+-- | Quantiles of the performance model. Only here for reference, as the actual
+-- implementation is in terms of 'Statistics.Distribution.Gamma'.
+orbitalQuantile :: Double -> Double -> Double
+orbitalQuantile k p
+    | p == 0 = 0
+    | p == 1 = inf
+    -- The "not bracketed" error can happen if p is too large and k is too
+    -- low. Setting the upper bound of the root finding algorithm at 100/k
+    -- appears sufficient to stave that off.
+    | p > 0 && p < 1 = case ridders def (0, 100/k) (fCrossing p) of
+        NotBracketed -> error $ errPfx ++ "fCrossing is not bracketed"
+        SearchFailed -> error $ errPfx ++ "convergence failure"
+        Root t -> t
+    | otherwise = error $ errPfx ++ "p outside of [0, 1] range"
+    where
+    inf = 1/0
+    fCrossing p t = orbitalCDF k t - p
+    errPfx = "Analysis.PerfModel.Orbital.orbitalQuantile: "
+
+
