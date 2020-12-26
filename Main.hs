@@ -13,10 +13,10 @@ import qualified Data.Text.IO as T
 main :: IO ()
 main = do
     seed <- save =<< createSystemRandom
-    T.writeFile "last-seed.txt" ((T.pack . show . fromSeed) seed)
     let simOpts = def
             { simSeed = Just seed
             }
     tab <- demoSimStrength simOpts
     tab & Text.Tabular.Csv.render id id id
         & writeFile "test.csv"
+    T.writeFile "last-seed.txt" ((T.pack . show . fromSeed) seed)
