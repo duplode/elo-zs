@@ -31,7 +31,8 @@ import Data.Default.Class
 -- | Winning probability of a racer with k = u against a racer with k = v,
 -- according to the performance model.
 perfWP :: Double -> Double -> Double
-perfWP u v = (u^5 + 5*u^4*v + 10*u^3*v^2) / (u + v)^5
+--perfWP u v = (u^5 + 5*u^4*v + 10*u^3*v^2) / (u + v)^5
+perfWP u v = u^3*(u^2 + 5*u*v + 10*v^2) / (u + v)^5
 
 -- | Elo-based winning probability.
 eloWP :: Double -> Double -> Double
@@ -48,7 +49,8 @@ referenceK = 9
 -- introduction).
 ratingFromK :: Double -> Double
 ratingFromK v = ru + (400 / log 10)
-    * log ((10*u^2*v^3 + 5*u*v^4 + v^5) / (u^5 + 5*u^4*v + 10*u^3*v^2))
+    -- * log ((10*u^2*v^3 + 5*u*v^4 + v^5) / (u^5 + 5*u^4*v + 10*u^3*v^2))
+    * (3*log (v/u) + log ((10*u^2 + 5*u*v + v^2) / (u^2 + 5*u*v + 10*v^2)))
     where
     ru = referenceRating
     u = referenceK
