@@ -1,7 +1,7 @@
 module Main where
 
 import Zak
-import Analysis.Simulation (SimOptions(..))
+import Analysis.Simulation (SimOptions(..), SimM(..), runSimM)
 
 import qualified Text.Tabular.Csv
 import Data.Function
@@ -14,9 +14,8 @@ main :: IO ()
 main = do
     seed <- save =<< createSystemRandom
     let simOpts = def
-            { simSeed = Just seed
-            }
-    tab <- demoSimStrength simOpts
+    (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength simOpts
     tab & Text.Tabular.Csv.render id id id
         & writeFile "test.csv"
-    T.writeFile "last-seed.txt" ((T.pack . show . fromSeed) seed)
+    T.writeFile "last-seed.txt" $ T.pack . show $
+        (fromSeed seed, fromSeed newSeed)

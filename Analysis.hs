@@ -20,6 +20,7 @@ import Data.Maybe
 import Data.Default.Class
 import qualified Data.List.NonEmpty as N
 import Control.Monad
+import Control.Monad.Trans
 
 -- | Highest rating achieved by each racer, annotated with the race at which
 -- it was achieved.
@@ -286,7 +287,7 @@ perfStrength = id
 
 simStrength
     :: SimOptions
-    -> LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
+    -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) (AtRace Double)
 simStrength simOpts =
     LS.arrM runSimsForRace <<< LS.generalize basicScan
     where
@@ -296,5 +297,5 @@ simStrength simOpts =
         . distillRatings def {excludeProvisional=False}
         <$> allRatings
     runSimsForRace = codistributeL . fmap @AtRace (simModelStrength simOpts)
-        <=< (\ar -> putStrLn ("Runs for race #" ++ show (raceIx ar))
+        <=< (\ar -> liftIO $ putStrLn ("Runs for race #" ++ show (raceIx ar))
             >> return ar)

@@ -7,7 +7,7 @@
 module Zak where
 
 import Analysis
-import Analysis.Simulation (SimOptions(..))
+import Analysis.Simulation (SimOptions(..), SimM(..))
 import Engine
 import Types
 import Tidying
@@ -253,7 +253,7 @@ demoPerfStrength = testData def
         ["Ix", "Strength"]
         (\(AtRace ri x) -> [show ri, show x])
 
-demoSimStrength :: SimOptions -> IO (Tab.Table String String String)
+demoSimStrength :: SimOptions -> SimM (Tab.Table String String String)
 demoSimStrength simOptions = testData def
     & LS.scanM (simStrength simOptions)
     >>= \res -> res & sortBy (comparing (Down . extract))

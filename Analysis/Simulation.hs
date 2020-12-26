@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase, GeneralisedNewtypeDeriving #-}
 -- | Module Analysis.Simulation
 --
 -- Simulate races using the performance model.
@@ -12,6 +12,9 @@ module Analysis.Simulation
     , runExperimentPip
     , runExperimentProbe
     , simModelStrength
+    , SimM(..)
+    , runSimM
+    , evalSimM
     ) where
 
 import Types
@@ -29,6 +32,8 @@ import Data.Ord
 import Pipes
 import qualified Pipes.Prelude as P
 import Data.Default.Class
+import Data.IORef
+import Control.Monad.State.Strict
 
 -- | Racer identification. The type is augmented by testing probes.
 data SimPip = Probe !Int | SimPip !PipId
@@ -44,61 +49,60 @@ data SimEntry = SimEntry
 
 -- | Prepare ratings from the engine to feed the simulation.
 toSimPips
-    :: [(Int, Double)]                 -- ^ Identifications and ratings of the probes.
-    -> Ratings                         -- ^ Ratings map from the engine.
-    -> [(SimPip, OrbitalDistribution)] -- ^ Identifications and performance models.
+    :: [(Int, Double)]                  -- ^ Identifications and ratings of the probes.
+    -> Ratings                          -- ^ Ratings map from the engine.
+    -> [(SimPip, OrbitalDistribution)]  -- ^ Identifications and performance models.
 toSimPips probes rtgs = map (second (orbitalDistr . kFromRating))
     $ map (first Probe) probes
     ++ map (bimap SimPip rating) (Map.assocs rtgs)
 
 -- | Stream of simulated race results.
 simulator
-    :: Maybe Seed                        -- ^ Generator seed.
-    -> [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
-    -> Producer [SimEntry] IO ()         -- ^ Identifications and laptime deltas.
-simulator seed pips = do
-    g <- liftIO $ maybe createSystemRandom restore seed
+    :: [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
+    -> Producer [SimEntry] SimM ()       -- ^ Identifications and laptime deltas.
+simulator pips = do
+    seed <- get
+    g <- liftIO $ restore seed
     P.repeatM $ do
-        results <- traverse (surroundL (flip genContVar g)) $ pips
+        results <- liftIO $ traverse (surroundL (flip genContVar g)) pips
+        newSeed <- liftIO $ save g
+        put newSeed
         return $ zipWith (uncurry SimEntry) (sortBy (comparing snd) results) [1..]
 
 -- | Generates results of a single race.
 simulateSingleRace
-    :: Maybe Seed                      -- ^ Generator seed.
-    -> [(SimPip, OrbitalDistribution)] -- ^ Identifications and performance models.
-    -> IO [SimEntry]                   -- ^ Identifications and laptime deltas.
-simulateSingleRace seed pips =
-    P.head (simulator seed pips) >>= \case
+    :: [(SimPip, OrbitalDistribution)]  -- ^ Identifications and performance models.
+    -> SimM [SimEntry]                  -- ^ Identifications and laptime deltas.
+simulateSingleRace pips = do
+    P.head (simulator pips) >>= \case
         Just res -> return res
         Nothing -> error "Analysis.Simulation: simulator exhausted"
 
 -- | Generates results of many races and tallies how often racers reached each
 -- position.
 runExperimentFull
-    :: Maybe Seed                      -- ^ Generator seed.
-    -> Int                             -- ^ Number of runs.
-    -> [(SimPip, OrbitalDistribution)] -- ^ Identifications and performance models.
-    -> IO (Map (SimPip, Int) Int)      -- ^ Count of racer-rank pairs.
-runExperimentFull seed nRuns pips = P.fold updateCount counters id entries
+    :: Int                              -- ^ Number of runs.
+    -> [(SimPip, OrbitalDistribution)]  -- ^ Identifications and performance models.
+    -> SimM (Map (SimPip, Int) Int)     -- ^ Count of racer-rank pairs.
+runExperimentFull nRuns pips = P.fold updateCount counters id entries
     where
     counters = Map.empty
-    entries = simulator seed pips >-> P.take nRuns >-> P.mapFoldable id
+    entries = simulator pips >-> P.take nRuns >-> P.mapFoldable id
     updateCount ctrs se =
         Map.alter (maybe (Just 1) (Just . (+ 1))) (simPip se, pipRank se) ctrs
 
 -- | Generates results of many races and tallies how often a specific racer
 -- reached each position.
 runExperimentPip
-    :: Maybe Seed                      -- ^ Generator seed.
-    -> Int                             -- ^ Number of runs.
-    -> SimPip                          -- ^ Selected racer.
-    -> [(SimPip, OrbitalDistribution)] -- ^ Identifications and performance models.
-    -> IO (Map Int Int)                -- ^ Count of racer-rank pairs.
-runExperimentPip seed nRuns selPip pips =
+    :: Int                               -- ^ Number of runs.
+    -> SimPip                            -- ^ Selected racer.
+    -> [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
+    -> SimM (Map Int Int)                -- ^ Count of racer-rank pairs.
+runExperimentPip nRuns selPip pips =
     P.fold updateCount counters id entries
     where
     counters = Map.empty
-    entries = simulator seed pips >-> P.take nRuns >-> P.mapFoldable id
+    entries = simulator pips >-> P.take nRuns >-> P.mapFoldable id
         >-> P.filter ((selPip ==) . simPip)
     updateCount ctrs se =
         Map.alter (maybe (Just 1) (Just . (+ 1))) (pipRank se) ctrs
@@ -108,18 +112,17 @@ runExperimentPip seed nRuns selPip pips =
 -- | Generates results of many races with an added probe and tallies how often
 -- the probe reached each position.
 runExperimentProbe
-    :: SimOptions                      -- ^ Number of runs, seed, and probe.
-    -> [(SimPip, OrbitalDistribution)] -- ^ Identifications and performance models.
-    -> IO (Map Int Int)                -- ^ Count of racer-rank pairs.
+    :: SimOptions                        -- ^ Number of runs, seed, and probe.
+    -> [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
+    -> SimM (Map Int Int)                -- ^ Count of racer-rank pairs.
 runExperimentProbe simOpts pips =
-    runExperimentPip seed nRuns probeId ((probeId, probeModel) : pips)
+    runExperimentPip nRuns probeId ((probeId, probeModel) : pips)
     where
-    seed = simSeed simOpts
     nRuns = simRuns simOpts
     probeModel = orbitalDistr (kFromRating (simProbeRating simOpts))
     probeId = Probe 0
 
-simModelStrength :: SimOptions -> Ratings -> IO Double
+simModelStrength :: SimOptions -> Ratings -> SimM Double
 simModelStrength simOpts = fmap ((fromIntegral nRuns /) . fromIntegral
         . Map.foldl' (+) 0 . Map.filterWithKey (\key _ -> isTargetReached key))
     . runExperimentProbe simOpts . toSimPips []
@@ -129,10 +132,7 @@ simModelStrength simOpts = fmap ((fromIntegral nRuns /) . fromIntegral
 
 
 data SimOptions = SimOptions
-    { simSeed :: Maybe Seed    -- ^ A random generator seed supplied by the
-                               -- caller. If 'Nothing', the simulation
-                               -- engine will set up a fresh generator.
-    , simProbeRating :: Double -- ^ Rating of the probe that will be used
+    { simProbeRating :: Double -- ^ Rating of the probe that will be used
                                -- as a reference in the strength
                                -- calculations.
     , simTarget :: Int         -- ^ Tally the top-n results attained by
@@ -144,11 +144,22 @@ data SimOptions = SimOptions
 
 instance Default SimOptions where
     def = SimOptions
-        { simSeed = Nothing
-        , simProbeRating = 1500
+        { simProbeRating = 1500
         , simTarget = 5
         , simRuns = 10000
         }
+
+-- | A state monad for threading generator state.
+newtype SimM a = SimM { getSimM :: StateT Seed IO a }
+    deriving (Functor, Applicative, Monad, MonadState Seed, MonadIO)
+
+runSimM :: Maybe Seed -> SimM a -> IO (a, Seed)
+runSimM mSeed sim = do
+    seed <- maybe createSystemSeed return mSeed
+    runStateT (getSimM sim) seed
+
+evalSimM :: Maybe Seed -> SimM a -> IO a
+evalSimM mSeed = fmap fst . runSimM mSeed
 
 example = bimap SimPip orbitalDistr
     <$> [("HAM", 250), ("BOT", 143), ("VER", 215), ("VET", 190), ("STR", 120)]
@@ -157,6 +168,6 @@ example = bimap SimPip orbitalDistr
 -- $>
 -- $> :set +s
 -- $>
--- >$> simulateSingleRace Nothing example
+-- >$> evalSimM Nothing $ simulateSingleRace Nothing example
 --
--- $> runExperimentFull Nothing 10000 example
+-- $> evalSimM Nothing $ runExperimentFull 10000 example

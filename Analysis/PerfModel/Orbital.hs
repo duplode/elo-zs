@@ -57,7 +57,7 @@ ratingFromK v = ru + (400 / log 10)
 
 -- | rating-to-k conversion (see step 4 in the Analysis.PerfModel
 -- introduction). Implemented through numerical root finding. The usable
--- range of inputs is between -inf and ~50000, which should suffice for
+-- range of inputs is between -inf and ~35000, which should suffice for
 -- most practical purposes.
 kFromRating :: Double -> Double
 kFromRating rv =
@@ -68,6 +68,7 @@ kFromRating rv =
     where
     ru = referenceRating
     u = referenceK
+    -- range = (0, max 5 (10**(rv/1200)))
     range = (0, max 5 (exp ((5/4) * rv/400) / 10))
     fCrossing v = perfWP u v - eloWP ru rv
     errPfx = "Analysis.PerfModel.Orbital.kFromRating: "

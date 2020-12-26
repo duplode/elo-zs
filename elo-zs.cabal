@@ -47,5 +47,6 @@ executable elo-zs
                      , math-functions
                      , mwc-random >= 0.15
                      , pipes
+                     , mtl
   -- hs-source-dirs:
   default-language:    Haskell2010
