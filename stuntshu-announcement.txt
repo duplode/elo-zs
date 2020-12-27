@@ -1,0 +1,201 @@
+(Originally posted at http://forum.stunts.hu/index.php?topic=3635.0)
+
+For a long while, one of my favourite Stunts investigation topics has been the
+evaluation of race strength, be it merely for the enjoyment of historians and
+pundits, or to inform some kind of spiritual successor to
+[url=https://digilander.libero.it/stunts.SDR/SWR/SWR.htm]Mark L. Rivers' SWR
+Ranking[/url]. Some of you might even remember
+[url=http://forum.stunts.hu/index.php?topic=2735.0]my 2012 thread on the
+matter[/url]. Now, after a long time with this project in the back burner, I
+have made enough progress to feel like posting about it again. So, without
+further ado, here is a plot of race strengths covering the 236 ZakStunts races
+so far:
+
+[img width=1024]https://i.imgur.com/st3JfQl.png[/img]
+
+(Attached below is the Excel file this chart belongs to, so you can have a
+closer look at the data.)
+
+While this chart might look rather like
+[url=http://forum.stunts.hu/index.php?topic=2735.msg67944#msg67944]the ones I
+shown you years ago[/url], there is one major difference: this time, a clearer
+procedure to obtain the data has led to values that are meaningful on their
+own. For instance, consider the massive spike you see just left of the middle
+of the chart. That is [url=http://zak.stunts.hu/tracks/ZCT100]ZCT100[/url],
+whose strength is around 70. According to the model underpinning the
+calculations, that number means a racer of Elo rating 1500 (which generally
+amounts to lower midfield) would, if they joined ZCT100, have a 1 in 70 chance
+of reaching a top five result on the scoreboard.
+
+The numbers here aren't definitive yet, as I still want to check whether there
+is any useful tuning of parameters to be done, as well as to figure out how to
+estimate some of the involved uncertainties. In any case, I believe they look
+fairly reasonable. Within each season, the ranking of races is generally very
+sensible. Comparing different eras of ZakStunts is, as one might expect,
+trickier. In particular, I feel the model might be overrating the 2010 races a
+little bit. Also, it is hard to tell whether the model underrates races from
+the first few seasons (2001-2004) as it moves towards a steadier state. Still,
+the chart does seem to capture the evolutionary arcs of ZakStunts: a steady
+increase in the level of the competition over the initial years, culminating in
+the 2005-2006 high plateau, followed by a sharp drop in 2007, and so forth.
+
+[hr]
+
+I will now outline how this new strength estimation works. Some of what follows
+might be of interest beyond mere technical curiosity, for parts of the
+procedure can be useful for other investigations in Stunts analytics.
+
+(By the way, you can check [url=https://github.com/duplode/elo-zs]the source
+code of my program[/url] on GitHub, if you are so inclined.)
+
+When I set about resuming this investigation early this year, I decided to,
+instead of rolling yet another quirky algorithm from scratch, start from
+well-understood building blocks, so that, if nothing else, I would get
+something intelligible at the end. Balancing that principle with the known
+limitations of my chosen methods (and there are quite a few of them), I
+eventually ended up with the following pipeline of computations:
+
+[list type=decimal] [li]From the ZakStunts results, compute
+[url=https://en.wikipedia.org/wiki/Elo_rating_system][b]Elo ratings[/b][/url]
+at every race.[/li] [li]Obtain, from the Elo ratings, victory probabilities
+against a hypothetical 1800-rated racer, and use those probabilities to
+parameterise a rough [b]performance model[/b], which amounts to the probability
+distribution of lap times (relative to an ideal lap) for a racer.[/li] [li]Use
+the performance model to implement a [b]race result simulator[/b], which spits
+out possible outcomes when given a list of racers and their ratings.[/li]
+[li]Add a ficticious 1500-rated racer to the list of race entrants, and run the
+simulation enough times to be able to give [b]a reasonable estimate of the
+likelihood of a top 5 finish[/b] by the ficticious racer.[/li] [/list]
+
+(Implicit in the above is that my code includes both a Elo rating calculator
+and a race result simulator, which can be put to use in other contexts with
+minimal effort.)
+
+Let's look at each step a little closer. When it comes to ratings of
+competitors, [b]Elo ratings[/b] are a pretty much universal starting point.
+They are mathematically simple and very well understood, which was a big plus
+given the plan I had at the outset. For our current purposes, though, the Elo
+system has one major disadvantage: it is designed for one-versus-one matches,
+and not for races. While it is certainly possible to approach a race as if it
+were the collection of all [i]N*(N-1)/2[/i] head-to-head matchups among the
+involved racers, doing so disregards how the actual head-to-head comparisons
+are correlated with each other, as they all depend on the [i]N[/i] racer
+laptimes. (To put it in another way: if you beat, say, FinRok in a race, that
+means you have achieved a laptime good enough to beat FinRok, and so such a
+laptime will likely be good enough to defeat most other racers.) All that
+correlation means there will be a lot of redundant information in the matchups,
+the practical consequence being that a single listfiller or otherwise atypical
+result can cause wild swings in a racer's rating. Trying to solve the problem
+by discarding most of the matchups (say, by only comparing a racer with their
+neighbours on the scoreboard) doesn't work well either: since we only have ~12
+races a year to get data out of, that approach will make the ratings evolve too
+slowly to be of any use. Eventually, I settled for a compromise of only using
+matchups up to six positions away on the scoreboard (in either direction),
+which at least curtails some of the worst distortions in races with 20+
+entrants. Besides that, my use of the Elo system is pretty standard. While new
+racers are handled specially over their initial five races for the sake of
+fairer comparisons and faster steadying of ratings, that is not outside the
+norm (for instance, chess tournaments generally take similar measures).
+
+Elo ratings are not enough to simulate race results, precisely because of the
+distinction between a collection of matchups and a single race discussed above.
+A simulation requires a [b]model of the racer performance[/b], so that
+individual simulated results for each racer can be put together in a
+scoreboard. One workaround to bridge this gap relies on victory probabilities.
+It is possible, given Elo ratings for a pair of racers, to calculate how likely
+one is to defeat the other in a matchup. Similarly, if you have the laptime
+probability distributions for a pair of racers, you can calculate how likely it
+is for one of them to be faster than the other. A few seat-of-the-pants
+assumptions later, we have a way to conjure a laptime probability distribution
+that corresponds to an Elo rating. As for the distributions, the ones I am
+using look like this:
+
+[img width=1024]https://i.imgur.com/mbhvmpo.png[/img]
+
+This is a really primitive model, perhaps the simplest thing that could
+possibly work. It is simple enough that there are victory probability formulas
+that can be calculated with pen and paper. There is just one racer-dependent
+parameter. As said parameter increases, the distribution is compressed towards
+zero (the ideal laptime), which implies laptimes that are typically faster and
+obtained more consistently (in the plot above, the parameter is 1 for the blue
+curve and 2 for the red one). While I haven't seriously attempted to validate
+the model empirically, the features it does have match some of the intuition
+about laptimes. (On the matter empirical validation, one might conceivably
+[url=http://forum.stunts.hu/index.php?topic=18.msg50237#msg50237]drive five
+laps on Default[/url] every day for a month and see how the resulting laptimes
+are spread. That would be a very interesting experiment, though for our
+immediate purposes the differences between RH and NoRH might become a
+confounding factor.)
+
+Having the laptime distributions for all entrants in a race makes it possible
+to figure out a formula that can be used to, in principle, numerically compute
+victory and [b]top-n probabilities[/b] against its set of racers. In practice,
+though, it turns out that victory probabilities aren't a good race strength
+metric, as the results tend to be largely determined by a small handful of
+racers with very high ratings. Furthermore, with this approach top-n
+probabilities quickly become too computationally expensive as [i]n[/i] grows
+(for the number of integrals to be numerically calculated grows
+combinatorially). For top-5 probabilities, which to my eyes look like the sweet
+spot for strength estimation, it is cheaper to use the distributions to
+[b]simulate the races[/b] and afterwards check how often top-5 results happen.
+That is the case even though a lot of runs are needed to get solid results.
+While I will try to better clarify how much "a lot" is, for now it seems that
+100,000 runs per race are a reasonable starting point. That means twenty three
+million and six hundred thousand runs to cover all ZakStunts racers. My laptop
+took fifteen and a half minutes to perform them yesterday, ultimately resulting
+in the chart at the top of the post.
+
+[hr]
+
+To turn the discussion back to sporting matters, the troubles with wild rating
+swings and outlier results alluded to above brought me back to the question of
+listfillers,
+[url=http://forum.stunts.hu/index.php?topic=2735.msg49468#msg49468]already
+raised by Bonzai Joe all those years ago[/url]. Left unchecked, a particularly
+weak listfiller in a busy race can wreck havoc upon the Elo rating of its
+unfortunate author. That ultimately compelled me to look for objective criteria
+according to which at least some of the obvious listfillers can be exclued. For
+the current purposes, I ultimately settled on the following three rules:
+
+[list type=decimal] [li]Results above 300% of the winning time [i]and[/i] more
+than two standard deviations away from the average of laptimes are to be
+excluded. (The Bonzai Joe rule.)[/li] [li]GAR and NoRH replays are only counted
+if the fastest lap on the parallel scoreboard they belong to is, or would be,
+above the bottom quarter (rounding towards the top) of the scoreboard. (The
+Marco rule.)[/li] [li]For our current purposes, a car is deemed "competitive"
+if it can be found above the bottom quarter (rounding towards the top) of the
+scoreboard, [i]or[/i] if it was used to defeat a racer using a competitive car
+whose lap was not excluded according to the previous two rules. Only laps
+driven with competitive cars count. (The Alan Rotoi rule).[/li] [/list]
+
+These rules were applied to the full list of ZakStunts race entries that I'm
+using (it was one of those quarantine days back in May). Disqualified race
+results were also removed; there were a few curious findings in that respect I
+should write about one of these days. (By the way, ghosts are not included in
+the calculations, regardless of what their race entries look like.)
+
+(A footnote: the bar for applying the first rule above looks, at first,
+incredibly low. I considered using a lower percentage, like 250%, and would
+rather not have the frankly bizarre standard deviation additional condition. It
+turns out, however, that ZCT029, a difficult dual-way full Vette PG track from
+2003, had an extraordinarily broad spectrum of laptimes, including several
+racers with non-listfiller laps beyond the 300% cutoff which would have been
+excluded without the standard deviation test. Faced with such a peculiar
+scoreboard, I opted to err on the side of circumspection.)
+
+It remains a tall order to find objective criteria to discard listfillers that
+won't exclude too many proper competitive laps as a collateral effect.
+Ultimately, if we were to establish new racer rankings I suspect different use
+cases would call for different kinds of ratings. An Elo-like ranking is
+appropriate for race strength estimations, simulations and predictions, when
+what is needed is a picture of how well someone is racing at a specific moment
+in time. For comparing performances within the last several months, though, a
+ranking of weighed (for instance, by recency or race strengths) race scores
+within a time window, in the style of SWR, might prove more appropriate. With
+this kind of ranking, it becomes reasonable to have, for instance,
+ZakStunts-style worst results discards, which could definitely help dealing
+with listfillers.
+
+Anyway, by now I probably should stop rambling, at least for a little while :D
+Questions, comments, criticism, suggestions about the metric and ideas on cool
+stuff to do with those algorithms are all welcome!
