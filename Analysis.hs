@@ -141,6 +141,8 @@ distillRatings :: PostProcessOptions -> AtRace Ratings -> AtRace Ratings
 distillRatings ppopts = extend $
     \(AtRace ri rtgs) ->  Map.filter (isKeptRating ppopts ri) rtgs
 
+-- Below follow various approaches to race strength estimation.
+
 -- | Prototype for scoring weighed by strength.
 simpleWeighedScores
     :: LS.Scan
@@ -184,6 +186,9 @@ exponentialScoring nDrawn rank
 -- log (10 / 6) = 0.5108256237659907
 -- log (9 / 6) = 0.4054651081081644
 
+-- | A race strength metric obtained by giving extra weight to the strength
+-- of racers in the scoreboard midfield. Uses 'fixedMidfieldWeight' as
+-- weighing function.
 weighedStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
 weighedStrength = id  -- fmap @AtRace strengthConversion
     . accumulatedRatings
@@ -203,7 +208,9 @@ weighedStrength = id  -- fmap @AtRace strengthConversion
                             * preStrengthWeight (length ress) n})
             p) id ress
 
-
+-- | Assigns points to race results, as in a regular season scoreboard,
+-- but using 'weighedStrength' as weight for the score of each race. Uses
+-- 'exponentialScoring' as the base score system.
 weighedScores
     :: LS.Scan
         (N.NonEmpty (Result PipId Int))
@@ -242,17 +249,20 @@ witch d s c x = 1 / (b * (x - c)^2 + 1)
     where
     b = (1 - s) / (s * d^2)
 
-
+-- | Midfield weighing through a gaussian centered at 6th place.
 fixedMidfieldWeight
     :: Int  -- ^ Race standing.
     -> Double
 fixedMidfieldWeight x = gaussian 5 (2/5) 6 (fromIntegral x)
 
+-- | Midfield weighing through a witch of Agnesi centered at 6th place.
 altFixedMidfieldWeight
     :: Int  -- ^ Race standing.
     -> Double
 altFixedMidfieldWeight x = witch 6 (1/2) 6 (fromIntegral x)
 
+-- | Midfield weighing through a gaussian centered at two fifths of the
+-- scoreboard size. Not a particularly effective weighing curve.
 variableMidfieldWeight
     :: Int  -- ^ Number of racers.
     -> Int  -- ^ Race standing.
@@ -261,6 +271,12 @@ variableMidfieldWeight n x = gaussian (peak - 1) (2/5) peak (fromIntegral x)
     where
     peak = (2 / 5) * fromIntegral n
 
+-- | Race strength as the logarithm of the reciprocal of the probability of
+-- an hypothetical extra racer (the "probe") defeating every other racer in
+-- independent head-to-head matches. Behaves reasonably well as a strength
+-- metric, even though the independent matches scenario doesn't really
+-- reflect what goes on in a race. The reciprocal of the probabilities is
+-- obtained through 'reinvertedRatings'.
 reinvertedStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
 reinvertedStrength = id  -- fmap @AtRace strengthConversion
     . fmap (logBase 10)
@@ -268,6 +284,9 @@ reinvertedStrength = id  -- fmap @AtRace strengthConversion
     . distillRatings def {excludeProvisional=False}
     <$> allRatings
 
+-- | Reciprocal of the probability of a 1500-rated probe-racer (see also
+-- 'reinvertedStrength') winning independent head-to-head matches against
+-- every racer in a race.
 reinvertedRatings :: AtRace Ratings -> AtRace Double
 reinvertedRatings
     = foldRatingsPerRace (lmap (invExpected . rating) L.product)
@@ -275,6 +294,11 @@ reinvertedRatings
     invExpected r = 1 + 10**((r - r0)/400)
     r0 = 1500
 
+-- | Race strength as victory unlikelihood of a probe-racer, in terms of the
+-- racer performance model and in particular
+-- 'Analysis.PerfModel.perfModelStrength'. Computationally cheap, but not a
+-- full reflection of the strength of a race, with a very small handful of
+-- top racers being able to largely determine the result.
 perfStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
 perfStrength = id
     . fmap @AtRace (perfModelStrength . map rating . Map.elems)
@@ -285,6 +309,11 @@ perfStrength = id
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
 
+-- | Race strengths obtained as top-N finish unlikelihood, in terms of the
+-- racer performance model. Estimated by simulating race results a large
+-- number of times (see the 'Analysis.Simulation' module). Computationally
+-- expensive, but gives a much better picture than using victory
+-- probabilities.
 simStrength
     :: SimOptions
     -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) (AtRace Double)
