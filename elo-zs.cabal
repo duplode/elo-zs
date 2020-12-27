@@ -4,7 +4,8 @@ cabal-version:       >=1.10
 
 name:                elo-zs
 version:             0.1.0.0
--- synopsis:
+synopsis:            Elo ratings, a race simulator and analysis tools for the ZakStunts
+  competition.
 -- description:
 -- bug-reports:
 -- license:
@@ -12,7 +13,7 @@ license-file:        LICENSE
 author:              Daniel Mlot
 maintainer:          duplode_1@yahoo.com.br
 copyright:           MIT
--- category:
+category:            Game, Statistics, Simulation
 build-type:          Simple
 extra-source-files:  CHANGELOG.md
 

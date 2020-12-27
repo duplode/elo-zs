@@ -13,7 +13,7 @@ import qualified Data.Text.IO as T
 main :: IO ()
 main = do
     seed <- save =<< createSystemRandom
-    let simOpts = def
+    let simOpts = def -- { simRuns = 100000 }
     (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength simOpts
     tab & Text.Tabular.Csv.render id id id
         & writeFile "test.csv"
