@@ -2,7 +2,7 @@
 
 This project includes an Elo rating engine and a race result simulator, which
 support analysis tools for analysis of races and racer performances in the
-[ZakStunts Stunts competition](http://zak.stumts.hu). While there is a fair
+[ZakStunts Stunts competition](http://zak.stunts.hu). While there is a fair
 amount of ZakStunts-specific code in the package, the cores of the Elo engine
 and simulator are largely competition-agnostic, and could conceivably be
 factored out into separate libraries.
@@ -29,8 +29,8 @@ Possible entry points for browsing the code:
     REPL-friendly interface.)
 
 A number of decisions in the implementation of the Elo engine were informed by
-Glickman, Mark E., [/A Comprehensive Guide to Chess
-Ratings/](http://www.glicko.net/research/acjpaper.pdf) (1995), a very readable
+Glickman, Mark E., [*A Comprehensive Guide to Chess
+Ratings*](http://www.glicko.net/research/acjpaper.pdf) (1995), a very readable
 introduction to the problem space. It should be noted that using Elo ratings
 to rank racers is a very simple approach with clear limitations, chiefly the
 absence of explicit modeling of rating uncertainties and the fact that the Elo
