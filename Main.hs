@@ -11,7 +11,9 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 main :: IO ()
-main = do
+main = perfMain
+
+simMain =  do
     seed <- save =<< createSystemRandom
     let simOpts = def -- { simRuns = 100000 }
     (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength simOpts
@@ -19,3 +21,8 @@ main = do
         & writeFile "test.csv"
     T.writeFile "last-seed.txt" $ T.pack . show $
         (fromSeed seed, fromSeed newSeed)
+
+perfMain = do
+    tab <- demoPerfTopStrength'
+    tab & Text.Tabular.Csv.render id id id
+        & writeFile "test2.csv"

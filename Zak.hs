@@ -253,6 +253,25 @@ demoPerfStrength = testData def
         ["Ix", "Strength"]
         (\(AtRace ri x) -> [show ri, show x])
 
+demoPerfTopStrength :: Tab.Table String String String
+demoPerfTopStrength = testData def
+    & LS.scan perfTopStrength
+    & sortBy (comparing (Down . extract))
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        ["Ix", "Strength"]
+        (\(AtRace ri x) -> [show ri, show x])
+
+demoPerfTopStrength' :: IO (Tab.Table String String String)
+demoPerfTopStrength' = testData def
+    & LS.scanM perfTopStrength'
+    >>= \res -> res & sortBy (comparing (Down . extract))
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        ["Ix", "Strength"]
+        (\(AtRace ri x) -> [show ri, show x])
+    & return
+
 demoSimStrength :: SimOptions -> SimM (Tab.Table String String String)
 demoSimStrength simOptions = testData def
     & LS.scanM (simStrength simOptions)

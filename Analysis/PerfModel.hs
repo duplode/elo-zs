@@ -1,7 +1,7 @@
 -- |
 -- Module: Analysis.PerfModel
 --
--- An experimental, left-field approach to obtaining strengths:
+-- An experimental approach to obtaining strengths:
 --
 -- 1. Assume time results for racers fit a distribution with PDF
 --    p = 4 * k^3 * t^2 * exp (-2*k*t) , with t ranging from 0 to positive
@@ -33,6 +33,7 @@
 -- analytically).
 module Analysis.PerfModel
     ( perfModelStrength
+    , perfModelTopStrength
     ) where
 
 import Analysis.PerfModel.Orbital
@@ -41,6 +42,7 @@ import qualified Numeric.Integration.TanhSinh as Integration
 
 import Data.Profunctor
 import qualified Control.Foldl as L
+import Data.Bifunctor
 
 -- | See step 5 of the introduction.
 raceWinPDF :: [Double] -> Double -> Double -> Double
@@ -57,4 +59,89 @@ perfModelStrength rs = 1 / integ
     integ = Integration.result . Integration.absolute 1e-6 $
         Integration.nonNegative Integration.trap (raceWinPDF rs 1500)
 
--- $> perfModelStrength [2200,2100,1900,1870,1850]
+-- | From a list prefix of n elements, generates all combinations of k
+-- elements, paired with the remaining n - k elements.
+combinations
+    :: Int  -- ^ Length of the list prefix from which the elements will be
+            -- drawn.
+    -> Int  -- ^ Size of the combinations to be generated.
+    -> [a]
+    -> [([a], [a])]
+-- Asqing for the list prefix length is not terribly elegant, but with short
+-- input lists it shouldn't be a big deal to compute the length upfront.
+combinations n k as = go n k (take n as)
+    where
+    go 0 _ _ = [([], [])]
+    go n 0 as = [([], as)]
+    go _ _ [] = [([], [])]
+    go n k (a : as)
+        | n < k = [([], [])]
+        | n == k = [(a : as, [])]
+        | otherwise = map (first (a :)) (go (n - 1) (k - 1) as)
+            ++ map (second (a :)) (go (n - 1) k as)
+
+bnom n k = product [(n-k+1)..n] `div` product [1..k]
+
+-- | Like 'raceWinPDF', but for an arbitrary position on the scoreboard.
+positionPDF :: Int -> [Double] -> Double -> Double -> Double
+positionPDF pos rs r t = orbitalPDF (kFromRating r) t
+    * L.fold L.sum (L.fold L.product . toFactors t <$> combos)
+    where
+    n = length rs
+    combos :: [([Double], [Double])]
+    combos = combinations n (pos-1) rs
+    toFactors :: Double -> ([Double], [Double]) -> [Double]
+    toFactors t (above, below) =
+        map loseVersus above ++ map winVersus below
+    loseVersus r' = orbitalCDF (kFromRating r') t
+    winVersus r' = 1 - loseVersus r'
+
+-- | Like 'positionPDF', but for a top-N finish.
+topPDF :: Int -> [Double] -> Double -> Double -> Double
+topPDF pos rs r t = L.fold (lmap (posPDF t) L.sum) validPositions
+    where
+    validPositions = zipWith const [1..pos] (r : rs)
+    posPDF t i = positionPDF i rs r t
+
+-- | Like 'perfModelStrength', but for a top-N finish. Note that the
+-- computational cost grows very quickly with the length of the list of
+-- ratings.
+perfModelTopStrength :: Int -> [Double] -> Double
+perfModelTopStrength pos rs = 1 / integ
+    where
+    integ = Integration.result . Integration.absolute 1e-6 $
+        Integration.nonNegative Integration.trap (topPDF pos rs 1500)
+
+example :: [Double]
+example = [2200,2100,1900,1870,1850]
+
+-- >$> (length $ combinations 12 6 [1..12]) == bnom 12 6
+--
+-- >$> perfModelStrength [2200,2100,1900,1870,1850]
+--
+-- >$> perfModelTopStrength 5 [2200,2100,1900,1870,1850]
+
+{-
+-- This implementation is not ideal. In particular, it is insufficiently lazy,
+-- as can be shown by specifying a long enough prefix. Since the prefixes used
+-- here are all relatively short, we can live with that for our current
+-- purposes.
+combinations
+    :: Int  -- ^ Length of the list prefix from which the elements will be
+            -- drawn.
+    -> Int  -- ^ Size of the combinations to be generated.
+    -> [a]
+    -> [([a], [a])]
+combinations n k = map (bimap snd snd) . foldr op [((0, []), (0, []))] . take n
+    where
+    op a = concatMap (\ (((sy, yea), (sn, nay))) ->
+        let sy' = sy + 1
+            sn' = sn + 1
+        in if sy < k && sn < n - k
+        then [((sy, yea), (sn', a : nay)), ((sy', a : yea), (sn, nay))]
+        else if sy == k
+        then [((sy, yea), (sn', a : nay))]
+        else if sn == n - k
+        then [((sy', a : yea), (sn, nay))]
+        else [])
+        -}

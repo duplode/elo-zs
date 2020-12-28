@@ -184,10 +184,10 @@ evalSimM mSeed = fmap fst . runSimM mSeed
 example = bimap SimPip orbitalDistr
     <$> [("HAM", 250), ("BOT", 143), ("VER", 215), ("VET", 190), ("STR", 120)]
 
--- $> :set -XOverloadedStrings
+-- >$> :set -XOverloadedStrings
 -- $>
--- $> :set +s
+-- >$> :set +s
 -- $>
 -- >$> evalSimM Nothing $ simulateSingleRace Nothing example
 --
--- $> evalSimM Nothing $ runExperimentFull 10000 example
+-- >$> evalSimM Nothing $ runExperimentFull 10000 example

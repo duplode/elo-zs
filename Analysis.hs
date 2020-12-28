@@ -309,6 +309,29 @@ perfStrength = id
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
 
+perfTopStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+perfTopStrength = id
+    . fmap @AtRace (perfModelTopStrength 5 . map rating . Map.elems)
+    . extend (\(AtRace ri rtgs)
+        -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
+    . distillRatings def {excludeProvisional=False}
+    <$> allRatings
+    where
+    isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
+
+perfTopStrength' :: LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
+perfTopStrength' = LS.arrM integrateRaces <<< LS.generalize basicScan
+    where
+    basicScan = extend (\(AtRace ri rtgs)
+            -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
+        . distillRatings def {excludeProvisional=False}
+        <$> allRatings
+    integrateRaces ar = do
+        let ar' = fmap @AtRace (perfModelTopStrength 5 . map rating . Map.elems) ar
+        liftIO $ putStrLn ("Done race #" ++ show (raceIx ar') ++ " : " ++ show (extract ar'))
+        return ar'
+    isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
+
 -- | Race strengths obtained as top-N finish unlikelihood, in terms of the
 -- racer performance model. Estimated by simulating race results a large
 -- number of times (see the 'Analysis.Simulation' module). Computationally
