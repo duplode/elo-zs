@@ -57,8 +57,38 @@ makeCombs = cata $ \case
     FlowerF a -> [[a]]
     BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 
+data SP a b = SP !a !b
+    deriving (Eq, Ord, Show)
+
+hyloCombs :: Int -> [a] -> [[a]]
+hyloCombs k as = concat (hylo flattenAlg combCoalg <$> seeds)
+    where
+    seeds = (k,) <$> tails as
+    combCoalg :: (Int, [a]) -> RoseF a (Int, [a])
+    combCoalg = \case
+        (0, _) -> LeafF
+        (_, []) -> LeafF
+        (1, a : _) -> FlowerF a
+        (k, a : as) ->
+            let k' = k - 1
+            in k' `seq` BranchF a ((k',) <$> tails as)
+        {-
+    seeds = SP k <$> tails as
+    combCoalg = \case
+        SP 0 _ -> LeafF
+        SP _ [] -> LeafF
+        SP 1 (a : _) -> FlowerF a
+        SP k (a : as) -> BranchF a (SP (k-1) <$> tails as)
+            -}
+    flattenAlg = \case
+        LeafF -> []
+        FlowerF a -> [[a]]
+        BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
+
+test1 n = length $ combinations n 12 [1..]
+test2 n = length $ hyloCombs 12 [1..n]
 
 -- >$> (length $ combinations 12 6 [1..12]) == bnom 12 6
 --
--- $> length (concatMap makeCombs $ combForest 12 [1..20]) == bnom 20 12
+-- $> length (hyloCombs 12 [1..20]) == bnom 20 12
 
