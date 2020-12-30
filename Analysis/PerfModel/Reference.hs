@@ -1,5 +1,8 @@
 -- |
--- Module: Analysis.PerfModel
+-- Module: Analysis.PerfModel.Reference
+--
+-- Slow but known correct implementation of Analysis.PerfModel, for testing
+-- purposes.
 --
 -- An experimental approach to obtaining strengths:
 --
@@ -31,13 +34,12 @@
 -- least some sense in the context of its application and is quite tractable
 -- (notably, both the CDF and the probabilities in step 2 can be worked out
 -- analytically).
-module Analysis.PerfModel
+module Analysis.PerfModel.Reference
     ( perfModelStrength
     , perfModelTopStrength
     ) where
 
 import Analysis.PerfModel.Orbital
-import qualified Analysis.PerfModel.Reference as R
 
 import qualified Numeric.Integration.TanhSinh as Integration
 
@@ -45,7 +47,7 @@ import Data.Profunctor
 import qualified Control.Foldl as L
 import Data.Bifunctor
 import qualified Data.IntMap.Strict as IntMap
-import Data.IntMap.Strict (IntMap, (!))
+import Data.IntMap.Strict (IntMap)
 
 -- | See step 5 of the introduction.
 raceWinPDF :: [Double] -> Double -> Double -> Double
@@ -88,48 +90,27 @@ bnom n k = product [(n-k+1)..n] `div` product [1..k]
 -- | Like 'raceWinPDF', but for an arbitrary position on the scoreboard.
 positionPDF :: Int -> [Double] -> Double -> Double -> Double
 positionPDF pos rs r t = orbitalPDF (kFromRating r) t
-    * L.fold L.sum (L.fold L.product . toFactors <$> combos)
+    * L.fold L.sum (L.fold L.product . toFactors t <$> combos)
     where
     n = length rs
-    combos = combinations n (pos-1) [1..n]
+    combos :: [([Double], [Double])]
+    combos = combinations n (pos-1) rs
+    toFactors :: Double -> ([Double], [Double]) -> [Double]
+    toFactors t (above, below) =
+        map loseVersus above ++ map winVersus below
     loseVersus r' = orbitalCDF (kFromRating r') t
-    -- winVersus r' = 1 - loseVersus r'
-    lvs = IntMap.fromList (zip [1..n] (loseVersus <$> rs))
-    wvs = (1 -) <$> lvs
-    toFactors (above, below) = map (lvs !) above ++ map (wvs !) below
-
--- | A variant of 'positionPDF' that takes precomputed probabilities.
-positionPDFPre :: Int                            -- ^ Target position.
-               -> (IntMap Double, IntMap Double) -- ^ Win and loss probabilities
-                                                 -- (given a probe laptime) for
-                                                 -- for each racer on the
-                                                 -- scoreboard.
-               -> Double                         -- ^ Probability density of the
-                                                 -- probe laptime.
-               -> Double
-positionPDFPre pos (lvs, wvs) p =
-    p * L.fold L.sum (L.fold L.product . toFactors <$> combos)
-    where
-    n = IntMap.size lvs
-    combos = combinations n (pos-1) [1..n]
-    toFactors (above, below) = map (lvs !) above ++ map (wvs !) below
-
+    winVersus r' = 1 - loseVersus r'
 
 -- | Like 'positionPDF', but for a top-N finish.
 topPDF :: Int -> [Double] -> Double -> Double -> Double
 topPDF pos rs r t = L.fold (lmap (posPDF t) L.sum) validPositions
     where
     validPositions = zipWith const [1..pos] (r : rs)
-    loseVersus r' = orbitalCDF (kFromRating r') t
-    lvs = IntMap.fromList (zip [1..] (loseVersus <$> rs))
-    wvs = (1 -) <$> lvs
-    probeDensity = orbitalPDF (kFromRating r) t
-    posPDF t i = positionPDFPre i (lvs, wvs) probeDensity
-    -- posPDF t i = positionPDF i rs r t
-
+    posPDF t i = positionPDF i rs r t
 
 -- | Like 'perfModelStrength', but for a top-N finish. Note that the
--- computational cost grows quickly with the length of the list of ratings.
+-- computational cost grows very quickly with the length of the list of
+-- ratings.
 perfModelTopStrength :: Int -> [Double] -> Double
 perfModelTopStrength pos rs = 1 / integ
     where
@@ -137,17 +118,13 @@ perfModelTopStrength pos rs = 1 / integ
         Integration.nonNegative Integration.trap (topPDF pos rs 1500)
 
 example :: [Double]
-example = [2200,2100,1900,1870,1850,1600]
+example = [2200,2100,1900,1870,1850]
 
 -- >$> (length $ combinations 12 6 [1..12]) == bnom 12 6
 --
 -- >$> perfModelStrength [2200,2100,1900,1870,1850]
 --
--- $> :set +s
---
--- >$> perfModelTopStrength 5 example == R.perfModelTopStrength 5 example
-
--- $> perfModelTopStrength 5 example
+-- >$> perfModelTopStrength 5 [2200,2100,1900,1870,1850]
 
 {-
 -- This implementation is not ideal. In particular, it is insufficiently lazy,
