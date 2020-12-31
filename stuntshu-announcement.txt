@@ -60,12 +60,16 @@ eventually ended up with the following pipeline of computations:
 at every race.[/li] [li]Obtain, from the Elo ratings, victory probabilities
 against a hypothetical 1800-rated racer, and use those probabilities to
 parameterise a rough [b]performance model[/b], which amounts to the probability
-distribution of lap times (relative to an ideal lap) for a racer.[/li] [li]Use
-the performance model to implement a [b]race result simulator[/b], which spits
-out possible outcomes when given a list of racers and their ratings.[/li]
-[li]Add a ficticious 1500-rated racer to the list of race entrants, and run the
-simulation enough times to be able to give [b]a reasonable estimate of the
-likelihood of a top 5 finish[/b] by the ficticious racer.[/li] [/list]
+distribution of lap times (relative to an ideal lap) for a racer.[/li]
+[li]Add a ficticious 1500-rated racer to the list of race entrants, and
+either: [list] [li]Use the performance model to implement a [b]race result
+simulator[/b], which spits out possible outcomes when given a list of
+racers and their ratings, and run the simulation enough times to be able to
+give a reasonable estimate of [b]the likelihood of a top 5 finish[/b] by the
+ficticious racer; or[/li] [li]Numerically integrate the aporopriately
+weighed probability density for the ficticious racer to obtain, as far as
+the model allows, an exact result for said likelihood.[/li] [/list][/li]
+[/list]
 
 (Implicit in the above is that my code includes both a Elo rating calculator
 and a race result simulator, which can be put to use in other contexts with
@@ -78,49 +82,51 @@ given the plan I had at the outset. For our current purposes, though, the Elo
 system has one major disadvantage: it is designed for one-versus-one matches,
 and not for races. While it is certainly possible to approach a race as if it
 were the collection of all [i]N*(N-1)/2[/i] head-to-head matchups among the
-involved racers, doing so disregards how the actual head-to-head comparisons
-are correlated with each other, as they all depend on the [i]N[/i] racer
-laptimes. (To put it in another way: if you beat, say, FinRok in a race, that
-means you have achieved a laptime good enough to beat FinRok, and so such a
-laptime will likely be good enough to defeat most other racers.) All that
-correlation means there will be a lot of redundant information in the matchups,
-the practical consequence being that a single listfiller or otherwise atypical
-result can cause wild swings in a racer's rating. Trying to solve the problem
-by discarding most of the matchups (say, by only comparing a racer with their
-neighbours on the scoreboard) doesn't work well either: since we only have ~12
-races a year to get data out of, that approach will make the ratings evolve too
-slowly to be of any use. Eventually, I settled for a compromise of only using
-matchups up to six positions away on the scoreboard (in either direction),
-which at least curtails some of the worst distortions in races with 20+
-entrants. Besides that, my use of the Elo system is pretty standard. While new
-racers are handled specially over their initial five races for the sake of
-fairer comparisons and faster steadying of ratings, that is not outside the
-norm (for instance, chess tournaments generally take similar measures).
+involved racers, doing so disregards how the actual head-to-head
+comparisons are correlated with each other, as they all depend on the [i]N[/i]
+racer laptimes. (To put it in another way: if you beat, say, FinRok in a
+race, that means you have achieved a laptime good enough to beat FinRok, and so
+such a laptime will likely be good enough to defeat most other racers.) All
+that correlation means there will be a lot of redundant information in the
+matchups, the practical consequence being that a single listfiller or otherwise
+atypical result can cause wild swings in a racer's rating. Trying to solve
+the problem by discarding most of the matchups (say, by only comparing a
+racer with their neighbours on the scoreboard) doesn't work well either:
+since we only have ~12 races a year to get data out of, that approach will make
+the ratings evolve too slowly to be of any use. Eventually, I settled for a
+compromise of only using matchups up to six positions away on the scoreboard
+(in either direction), which at least curtails some of the worst distortions in
+races with 20+ entrants. Besides that, my use of the Elo system is pretty
+standard. While new racers are handled specially over their initial five
+races for the sake of fairer comparisons and faster steadying of ratings, that
+is not outside the norm (for instance, chess tournaments generally take similar
+measures).
 
 Elo ratings are not enough to simulate race results, precisely because of the
 distinction between a collection of matchups and a single race discussed above.
 A simulation requires a [b]model of the racer performance[/b], so that
 individual simulated results for each racer can be put together in a
 scoreboard. One workaround to bridge this gap relies on victory probabilities.
-It is possible, given Elo ratings for a pair of racers, to calculate how likely
-one is to defeat the other in a matchup. Similarly, if you have the laptime
-probability distributions for a pair of racers, you can calculate how likely it
-is for one of them to be faster than the other. A few seat-of-the-pants
-assumptions later, we have a way to conjure a laptime probability distribution
-that corresponds to an Elo rating. As for the distributions, the ones I am
-using look like this:
+It is possible, given Elo ratings for a pair of racers, to calculate how
+likely one is to defeat the other in a matchup. Similarly, if you have the
+laptime probability distributions for a pair of racers, you can calculate
+how likely it is for one of them to be faster than the other. A few
+seat-of-the-pants assumptions later, we have a way to conjure a laptime
+probability distribution that corresponds to an Elo rating. As for the
+distributions, the ones I am using look like this:
 
 [img width=1024]https://i.imgur.com/mbhvmpo.png[/img]
 
 This is a really primitive model, perhaps the simplest thing that could
 possibly work. It is simple enough that there are victory probability formulas
-that can be calculated with pen and paper. There is just one racer-dependent
-parameter. As said parameter increases, the distribution is compressed towards
-zero (the ideal laptime), which implies laptimes that are typically faster and
-obtained more consistently (in the plot above, the parameter is 1 for the blue
-curve and 2 for the red one). While I haven't seriously attempted to validate
-the model empirically, the features it does have match some of the intuition
-about laptimes. (On the matter empirical validation, one might conceivably
+that can be calculated with pen and paper. There is just one
+racer-dependent parameter. As said parameter increases, the distribution is
+compressed towards zero (the ideal laptime), which implies laptimes that are
+typically faster and obtained more consistently (in the plot above, the
+parameter is 1 for the blue curve and 2 for the red one). While I haven't
+seriously attempted to validate the model empirically, the features it does
+have match some of the intuition about laptimes. (On the matter empirical
+validation, one might conceivably
 [url=http://forum.stunts.hu/index.php?topic=18.msg50237#msg50237]drive five
 laps on Default[/url] every day for a month and see how the resulting laptimes
 are spread. That would be a very interesting experiment, though for our
@@ -129,21 +135,24 @@ confounding factor.)
 
 Having the laptime distributions for all entrants in a race makes it possible
 to figure out a formula that can be used to, in principle, numerically compute
-victory and [b]top-n probabilities[/b] against its set of racers. In practice,
-though, it turns out that victory probabilities aren't a good race strength
+victory and [b]top-n probabilities[/b] against its set of racers. In
+practice, it turns out that victory probabilities aren't a good race strength
 metric, as the results tend to be largely determined by a small handful of
-racers with very high ratings. Furthermore, with this approach top-n
-probabilities quickly become too computationally expensive as [i]n[/i] grows
-(for the number of integrals to be numerically calculated grows
-combinatorially). For top-5 probabilities, which to my eyes look like the sweet
-spot for strength estimation, it is cheaper to use the distributions to
-[b]simulate the races[/b] and afterwards check how often top-5 results happen.
-That is the case even though a lot of runs are needed to get solid results.
-While I will try to better clarify how much "a lot" is, for now it seems that
-100,000 runs per race are a reasonable starting point. That means twenty three
-million and six hundred thousand runs to cover all ZakStunts racers. My laptop
-took fifteen and a half minutes to perform them yesterday, ultimately resulting
-in the chart at the top of the post.
+racers with very high ratings. To my eyes, the top-5 probabilities are at
+the sweet spot for strength estimations. I originally believed calculating the
+probabilities by numerical integration would be too computationally expensive
+(as the number of integrals to be numerically calculated grows combinatorially
+as the [i]n[/i] in top-[i]n[/i] grows), so I used the alternative strategy of
+[b]simulating the races[/b] and afterwards check how often top-5 results
+happen. The chart at the top of the post was generated after 100,000 runs per
+race, that is, twenty three million and six hundred thousand runs to cover all
+ZakStunts races, which took fifteen and a half minutes to perform on my laptop.
+Later, I figured out that, with sufficiently careful coding, the numerical
+method, which has the advantage of giving essentially exact results, is
+feasible for top-5 probabilities; accordingly, an alternative Excel file with
+those results is also attached. (The simulations remain useful for wider
+top-[i]n[/i] ranges, or for quickly obtaining coarse results with 1,000 to
+10,000 runs per race while tuning the analysis parameters.)
 
 [hr]
 
@@ -164,8 +173,8 @@ if the fastest lap on the parallel scoreboard they belong to is, or would be,
 above the bottom quarter (rounding towards the top) of the scoreboard. (The
 Marco rule.)[/li] [li]For our current purposes, a car is deemed "competitive"
 if it can be found above the bottom quarter (rounding towards the top) of the
-scoreboard, [i]or[/i] if it was used to defeat a racer using a competitive car
-whose lap was not excluded according to the previous two rules. Only laps
+scoreboard, [i]or[/i] if it was used to defeat a racer using a competitive
+car whose lap was not excluded according to the previous two rules. Only laps
 driven with competitive cars count. (The Alan Rotoi rule).[/li] [/list]
 
 These rules were applied to the full list of ZakStunts race entries that I'm
@@ -179,14 +188,14 @@ incredibly low. I considered using a lower percentage, like 250%, and would
 rather not have the frankly bizarre standard deviation additional condition. It
 turns out, however, that ZCT029, a difficult dual-way full Vette PG track from
 2003, had an extraordinarily broad spectrum of laptimes, including several
-racers with non-listfiller laps beyond the 300% cutoff which would have been
-excluded without the standard deviation test. Faced with such a peculiar
+racers with non-listfiller laps beyond the 300% cutoff which would have
+been excluded without the standard deviation test. Faced with such a peculiar
 scoreboard, I opted to err on the side of circumspection.)
 
 It remains a tall order to find objective criteria to discard listfillers that
 won't exclude too many proper competitive laps as a collateral effect.
-Ultimately, if we were to establish new racer rankings I suspect different use
-cases would call for different kinds of ratings. An Elo-like ranking is
+Ultimately, if we were to establish new racer rankings I suspect different
+use cases would call for different kinds of ratings. An Elo-like ranking is
 appropriate for race strength estimations, simulations and predictions, when
 what is needed is a picture of how well someone is racing at a specific moment
 in time. For comparing performances within the last several months, though, a
