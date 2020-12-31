@@ -1,8 +1,10 @@
-{-# LANGUAGE LambdaCase #-}
 -- |
--- Module: Analysis.PerfModel
+-- Module: Analysis.PerfModel.Reference.Precompute
 --
--- An experimental approach to obtaining strengths:
+-- Known correct implementation of Analysis.PerfModel, for testing purposes.
+-- Performs acceptably, much faster than the naive implementation, though not
+-- quite as fast as the (significantly more complicated) 'CombRose'
+-- hylomorphism implementation.
 --
 -- 1. Assume time results for racers fit a distribution with PDF
 --    p = 4 * k^3 * t^2 * exp (-2*k*t) , with t ranging from 0 to positive
@@ -32,14 +34,14 @@
 -- least some sense in the context of its application and is quite tractable
 -- (notably, both the CDF and the probabilities in step 2 can be worked out
 -- analytically).
-module Analysis.PerfModel
+module Analysis.PerfModel.Reference.Precompute
     ( perfModelStrength
     , perfModelTopStrength
     , example
     ) where
 
 import Analysis.PerfModel.Orbital
-import qualified Analysis.PerfModel.Reference.Precompute as R
+import qualified Analysis.PerfModel.Reference.Naive as R
 import qualified Util.Combinations as Util
 
 import qualified Numeric.Integration.TanhSinh as Integration
@@ -67,9 +69,6 @@ perfModelStrength rs = 1 / integ
     integ = Integration.result . Integration.absolute 1e-6 $
         Integration.nonNegative Integration.trap (raceWinPDF rs 1500)
 
--- TODO: positionPDF and positionPDFPre are still the same as in
--- Analysis.PerfModel.Reference.Precompute . Conside redefining them so that
--- topPDF can share code with them.
 
 -- | Like 'raceWinPDF', but for an arbitrary position on the scoreboard.
 positionPDF :: Int -> [Double] -> Double -> Double -> Double
@@ -100,24 +99,18 @@ positionPDFPre pos (lvs, wvs) p =
     combos = Util.combinations n (pos-1) [1..n]
     toFactors (above, below) = map (lvs !) above ++ map (wvs !) below
 
+
 -- | Like 'positionPDF', but for a top-N finish.
 topPDF :: Int -> [Double] -> Double -> Double -> Double
-topPDF pos rs r t = (probeDensity *) . L.fold L.sum $
-    L.fold L.sum . partials <$> validPositions
+topPDF pos rs r t = L.fold (lmap (posPDF t) L.sum) validPositions
     where
     validPositions = zipWith const [1..pos] (r : rs)
     loseVersus r' = orbitalCDF (kFromRating r') t
     lvs = IntMap.fromList (zip [1..] (loseVersus <$> rs))
     wvs = (1 -) <$> lvs
     probeDensity = orbitalPDF (kFromRating r) t
-    partials = Util.processCombsInt alg (length rs) . subtract 1
-    alg = \case
-        Util.LeafF Nothing -> 0
-        Util.LeafF (Just rest) ->
-            L.fold L.product ((wvs !) <$> IntSet.toList rest)
-        Util.FlowerF a rest -> (lvs ! a)
-            * L.fold L.product ((wvs !) <$> IntSet.toList rest)
-        Util.BranchF a bs -> (lvs ! a) * L.fold L.sum bs
+    posPDF t i = positionPDFPre i (lvs, wvs) probeDensity
+    -- posPDF t i = positionPDF i rs r t
 
 -- | Like 'perfModelStrength', but for a top-N finish. Note that the
 -- computational cost grows quickly with the length of the list of ratings.
@@ -130,13 +123,13 @@ perfModelTopStrength pos rs = 1 / integ
 
 example :: [Double]
 example = [2200,2100,1900,1870,1850,1600]
---example = [2200,2100,1900,1870,1850,1600,1590,1570,1510,1420,1370,1350,1225]
+-- example = [2200,2100,1900,1870,1850,1600,1590,1570,1510,1420,1370,1350,1225]
 
 -- >$> perfModelStrength [2200,2100,1900,1870,1850]
 --
 -- >$> :set +s
 --
--- $> perfModelTopStrength 5 example - R.perfModelTopStrength 5 example
+-- >$> perfModelTopStrength 5 example == R.perfModelTopStrength 5 example
 
 -- >$> perfModelTopStrength 5 example
 

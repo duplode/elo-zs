@@ -51,10 +51,33 @@ data CombRose z a
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 makeBaseFunctor ''CombRose
 
+-- | A strict triple type.
 data STr a b c = STr !a !b !c
     deriving (Eq, Ord, Show)
 
-processCombsInt :: (CombRoseF IntSet Int b -> b) -> Int -> Int -> [b]
+-- | Efficiently generates and consumes combinations of 1-based Int indexes.
+-- The combinations are generated as the intermediate data structure in a
+-- hylomorphism. Except in the degenerate choose-0 case, this intermediate
+-- 'CombRose' structure arranges the indexes in increasing order, each level
+-- of the tree corresponding to the possibilities for the next index to be
+-- chosen. For choose-k combinations, there will be k trees, each
+-- corresponding to a possible smallest index, which will give rise to k
+-- final results.
+processCombsInt
+    :: (CombRoseF IntSet Int b -> b)  -- ^ Algebra for consuming the indexes
+                                      -- arranged in combinations. The IntSet
+                                      -- payload offers access to the indexes
+                                      -- left unused by each combination.
+    -> Int                            -- ^ Number of indices to choose from.
+                                      -- Must be positive.
+    -> Int                            -- ^ Number of indices to be chosen.
+                                      -- Must be nonnegative.
+    -> [b]                            -- ^ Partial results. There will be one
+                                      -- result for k == 0, corresponding to
+                                      -- the only possible combination, and k
+                                      -- results for k > 0, corresponding to
+                                      -- the possible smallest elements in
+                                      -- the combinations.
 processCombsInt alg n k = hylo alg combCoalg <$> seeds
     where
     as = [1..n]
@@ -62,8 +85,20 @@ processCombsInt alg n k = hylo alg combCoalg <$> seeds
         0 -> [STr 0 (IntSet.fromList as) []]
         _ -> STr k (IntSet.fromList as) <$> tails as
     combCoalg = \case
+        -- If the initial k is above 0, k won't become 0 through the unfold,
+        -- because of the k == 1 special case. Therefore, k will only be 0
+        -- if we have actually asked for a choose-0 combination, and so the
+        -- resulting combination is valid.
         STr 0 tracker _ -> LeafF (Just tracker)
+        -- Assuming we haven't asked for a choose-0 combination, the input
+        -- list should never be completely emptied, given the k == 1 special
+        -- case. An empty input list means there aren't enough elements to
+        -- complete the combination, and so the resulting combination is
+        -- invalid.
         STr _ _ [] -> LeafF Nothing
+        -- If k == 1, the combination is validly terminated with the next
+        -- element in the input list, and the unused elements are returned
+        -- through the IntSet payload.
         STr 1 tracker (a : _) -> FlowerF a (IntSet.delete a tracker)
         STr k tracker (a : as) ->
             BranchF a (STr (k-1) (IntSet.delete a tracker) <$> tails as)

@@ -1,5 +1,5 @@
 -- |
--- Module: Analysis.PerfModel.Reference
+-- Module: Analysis.PerfModel.Reference.Naive
 --
 -- Slow but known correct implementation of Analysis.PerfModel, for testing
 -- purposes.
@@ -34,7 +34,7 @@
 -- least some sense in the context of its application and is quite tractable
 -- (notably, both the CDF and the probabilities in step 2 can be worked out
 -- analytically).
-module Analysis.PerfModel.Reference
+module Analysis.PerfModel.Reference.Naive
     ( perfModelStrength
     , perfModelTopStrength
     ) where

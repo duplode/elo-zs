@@ -21,7 +21,8 @@ executable elo-zs
   main-is:             Main.hs
   other-modules:       Analysis
                      , Analysis.PerfModel
-                     , Analysis.PerfModel.Reference
+                     , Analysis.PerfModel.Reference.Naive
+                     , Analysis.PerfModel.Reference.Precompute
                      , Analysis.PerfModel.Orbital
                      , Analysis.Simulation
                      , Engine
