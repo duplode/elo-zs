@@ -39,7 +39,7 @@ combinations n k as = go n k (take n as)
 bnom n k = product [(n-k+1)..n] `div` product [1..k]
 
 -- | A rose tree, adapted for generating combinations
-data CombRose z a = Leaf | Flower a z | Branch a [CombRose z a]
+data CombRose z a = Leaf z | Flower a z | Branch a [CombRose z a]
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 makeBaseFunctor ''CombRose
 
@@ -49,14 +49,14 @@ combForest k as = ana nextLevel <$> ((k,) <$> tails as)
     where
     nextLevel :: (Int, [a]) -> CombRoseF () a (Int, [a])
     nextLevel = \case
-        (0, _) -> LeafF
-        (_, []) -> LeafF
+        (0, _) -> LeafF ()
+        (_, []) -> LeafF ()
         (1, a : _) -> FlowerF a ()
         (k, a : as) -> BranchF a ((k-1,) <$> tails as)
 
 makeCombs :: CombRose () a -> [[a]]
 makeCombs = cata $ \case
-    LeafF -> []
+    LeafF _ -> []
     FlowerF a _ -> [[a]]
     BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 
@@ -71,12 +71,12 @@ hyloCombs k as = concat (hylo flattenAlg combCoalg <$> seeds)
     where
     seeds = SP k <$> tails as
     combCoalg = \case
-        SP 0 _ -> LeafF
-        SP _ [] -> LeafF
+        SP 0 _ -> LeafF ()
+        SP _ [] -> LeafF ()
         SP 1 (a : _) -> FlowerF a ()
         SP k (a : as) -> BranchF a (SP (k-1) <$> tails as)
     flattenAlg = \case
-        LeafF -> []
+        LeafF _ -> []
         FlowerF a _ -> [[a]]
         BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 
@@ -86,12 +86,12 @@ hyloCombsInt n k = concat (hylo flattenAlg combCoalg <$> seeds)
     as = [1..n]
     seeds = SP k <$> tails as
     combCoalg = \case
-        SP 0 _ -> LeafF
-        SP _ [] -> LeafF
+        SP 0 _ -> LeafF ()
+        SP _ [] -> LeafF ()
         SP 1 (a : _) -> FlowerF a ()
         SP k (a : as) -> BranchF a (SP (k-1) <$> tails as)
     flattenAlg = \case
-        LeafF -> []
+        LeafF _ -> []
         FlowerF a _ -> [[a]]
         BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 
@@ -99,10 +99,12 @@ processCombsInt :: (CombRoseF IntSet Int b -> b) -> Int -> Int -> [b]
 processCombsInt alg n k = hylo alg combCoalg <$> seeds
     where
     as = [1..n]
-    seeds = STr k (IntSet.fromList as) <$> tails as
+    seeds = case k of
+        0 -> [STr 0 (IntSet.fromList as) []]
+        _ -> STr k (IntSet.fromList as) <$> tails as
     combCoalg = \case
-        STr 0 _ _ -> LeafF
-        STr _ _ [] -> LeafF
+        STr 0 tracker _ -> LeafF tracker
+        STr _ _ [] -> LeafF (IntSet.empty)
         STr 1 tracker (a : _) -> FlowerF a (IntSet.delete a tracker)
         STr k tracker (a : as) ->
             BranchF a (STr (k-1) (IntSet.delete a tracker) <$> tails as)
@@ -115,7 +117,7 @@ test4 :: Int -> Int -> [Integer]
 test4 n k = processCombsInt alg n k
     where
     alg = \case
-        LeafF -> 0
+        LeafF rest -> if IntSet.null rest then 0 else IntSet.foldl' (\b k -> b * fromIntegral k) 1 rest
         FlowerF a rest -> fromIntegral a * IntSet.foldl' (\b k -> b * fromIntegral k) 1 rest
         BranchF a bs -> fromIntegral a * foldl' (+) 0 (map fromIntegral bs)
 
@@ -123,11 +125,9 @@ test5 :: Int -> Int -> [[Int]]
 test5 n k = concat $ processCombsInt alg n k
     where
     alg = \case
-        LeafF -> []
+        LeafF rest -> if IntSet.null rest then [] else [IntSet.toList rest]
         FlowerF a rest -> [a : IntSet.toList rest]
         BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 
 -- >$> (length $ combinations 12 6 [1..12]) == bnom 12 6
---
--- >$> length (hyloCombs 12 [1..20]) == bnom 20 12
 
