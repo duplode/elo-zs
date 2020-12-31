@@ -1,6 +1,4 @@
-{-# LANGUAGE TemplateHaskell, TypeFamilies #-}
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
-{-# LANGUAGE LambdaCase, TupleSections #-}
+{-# LANGUAGE LambdaCase #-}
 -- |
 -- Module: Analysis.PerfModel
 --
@@ -37,6 +35,7 @@
 module Analysis.PerfModel
     ( perfModelStrength
     , perfModelTopStrength
+    , example
     ) where
 
 import Analysis.PerfModel.Orbital
@@ -49,6 +48,9 @@ import Data.Profunctor
 import qualified Control.Foldl as L
 import qualified Data.IntMap.Strict as IntMap
 import Data.IntMap.Strict (IntMap, (!))
+import qualified Data.IntSet as IntSet
+import Data.IntSet (IntSet)
+import qualified Control.Foldl as L
 
 -- | See step 5 of the introduction.
 raceWinPDF :: [Double] -> Double -> Double -> Double
@@ -108,6 +110,23 @@ topPDF pos rs r t = L.fold (lmap (posPDF t) L.sum) validPositions
     posPDF t i = positionPDFPre i (lvs, wvs) probeDensity
     -- posPDF t i = positionPDF i rs r t
 
+topPDF' :: Int -> [Double] -> Double -> Double -> Double
+topPDF' pos rs r t = L.fold L.sum $
+    L.fold (rmap (probeDensity *) L.sum) . partials <$> validPositions
+    where
+    validPositions = zipWith const [1..pos] (r : rs)
+    loseVersus r' = orbitalCDF (kFromRating r') t
+    lvs = IntMap.fromList (zip [1..] (loseVersus <$> rs))
+    wvs = (1 -) <$> lvs
+    probeDensity = orbitalPDF (kFromRating r) t
+    partials = Util.processCombsInt alg (length rs) . subtract 1
+    alg = \case
+        Util.LeafF rest -> if IntSet.null rest
+            then 0
+            else L.fold L.product ((wvs !) <$> IntSet.toList rest)
+        Util.FlowerF a rest -> (lvs ! a)
+            * L.fold L.product ((wvs !) <$> IntSet.toList rest)
+        Util.BranchF a bs -> (lvs ! a) * L.fold L.sum bs
 
 -- | Like 'perfModelStrength', but for a top-N finish. Note that the
 -- computational cost grows quickly with the length of the list of ratings.
@@ -115,11 +134,12 @@ perfModelTopStrength :: Int -> [Double] -> Double
 perfModelTopStrength pos rs = 1 / integ
     where
     integ = Integration.result . Integration.absolute 1e-6 $
-        Integration.nonNegative Integration.trap (topPDF pos rs 1500)
+        Integration.nonNegative Integration.trap (topPDF' pos rs 1500)
 
 
 example :: [Double]
 example = [2200,2100,1900,1870,1850,1600]
+-- example = [2200,2100,1900,1870,1850,1600,1590,1570,1510,1420,1370,1350,1225]
 
 -- >$> perfModelStrength [2200,2100,1900,1870,1850]
 --
