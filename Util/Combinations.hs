@@ -39,61 +39,20 @@ combinations n k as = go n k (take n as)
 bnom n k = product [(n-k+1)..n] `div` product [1..k]
 
 -- | A rose tree, adapted for generating combinations
-data CombRose z a = Leaf z | Flower a z | Branch a [CombRose z a]
+data CombRose z a
+    = Leaf (Maybe z)  -- ^ Terminates a combination without adding a final
+                      -- value. The 'Maybe' wrapping signals whether this
+                      -- outcome is valid (as in choose-0 combinations) or
+                      -- not. If it is valid, there is a payload.
+    | Flower a z      -- ^ Terminates a combination adding a final value
+                      -- and supplying a payload.
+    | Branch a [CombRose z a]  -- ^ Continues a combination by branching
+                               -- into different possibilities.
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 makeBaseFunctor ''CombRose
 
-
-combForest :: Int -> [a] -> [CombRose () a]
-combForest k as = ana nextLevel <$> ((k,) <$> tails as)
-    where
-    nextLevel :: (Int, [a]) -> CombRoseF () a (Int, [a])
-    nextLevel = \case
-        (0, _) -> LeafF ()
-        (_, []) -> LeafF ()
-        (1, a : _) -> FlowerF a ()
-        (k, a : as) -> BranchF a ((k-1,) <$> tails as)
-
-makeCombs :: CombRose () a -> [[a]]
-makeCombs = cata $ \case
-    LeafF _ -> []
-    FlowerF a _ -> [[a]]
-    BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
-
-data SP a b = SP !a !b
-    deriving (Eq, Ord, Show)
-
 data STr a b c = STr !a !b !c
     deriving (Eq, Ord, Show)
-
-hyloCombs :: Int -> [a] -> [[a]]
-hyloCombs k as = concat (hylo flattenAlg combCoalg <$> seeds)
-    where
-    seeds = SP k <$> tails as
-    combCoalg = \case
-        SP 0 _ -> LeafF ()
-        SP _ [] -> LeafF ()
-        SP 1 (a : _) -> FlowerF a ()
-        SP k (a : as) -> BranchF a (SP (k-1) <$> tails as)
-    flattenAlg = \case
-        LeafF _ -> []
-        FlowerF a _ -> [[a]]
-        BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
-
-hyloCombsInt :: Int -> Int -> [[Int]]
-hyloCombsInt n k = concat (hylo flattenAlg combCoalg <$> seeds)
-    where
-    as = [1..n]
-    seeds = SP k <$> tails as
-    combCoalg = \case
-        SP 0 _ -> LeafF ()
-        SP _ [] -> LeafF ()
-        SP 1 (a : _) -> FlowerF a ()
-        SP k (a : as) -> BranchF a (SP (k-1) <$> tails as)
-    flattenAlg = \case
-        LeafF _ -> []
-        FlowerF a _ -> [[a]]
-        BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 
 processCombsInt :: (CombRoseF IntSet Int b -> b) -> Int -> Int -> [b]
 processCombsInt alg n k = hylo alg combCoalg <$> seeds
@@ -103,21 +62,20 @@ processCombsInt alg n k = hylo alg combCoalg <$> seeds
         0 -> [STr 0 (IntSet.fromList as) []]
         _ -> STr k (IntSet.fromList as) <$> tails as
     combCoalg = \case
-        STr 0 tracker _ -> LeafF tracker
-        STr _ _ [] -> LeafF (IntSet.empty)
+        STr 0 tracker _ -> LeafF (Just tracker)
+        STr _ _ [] -> LeafF Nothing
         STr 1 tracker (a : _) -> FlowerF a (IntSet.delete a tracker)
         STr k tracker (a : as) ->
             BranchF a (STr (k-1) (IntSet.delete a tracker) <$> tails as)
 
 test1 n = length $ combinations n 12 [1..]
-test2 n = length $ hyloCombs 12 [1..n]
-test3 n = length $ hyloCombsInt n 12
 
 test4 :: Int -> Int -> [Integer]
 test4 n k = processCombsInt alg n k
     where
     alg = \case
-        LeafF rest -> if IntSet.null rest then 0 else IntSet.foldl' (\b k -> b * fromIntegral k) 1 rest
+        LeafF Nothing -> 0
+        LeafF (Just rest) -> IntSet.foldl' (\b k -> b * fromIntegral k) 1 rest
         FlowerF a rest -> fromIntegral a * IntSet.foldl' (\b k -> b * fromIntegral k) 1 rest
         BranchF a bs -> fromIntegral a * foldl' (+) 0 (map fromIntegral bs)
 
@@ -125,7 +83,8 @@ test5 :: Int -> Int -> [[Int]]
 test5 n k = concat $ processCombsInt alg n k
     where
     alg = \case
-        LeafF rest -> if IntSet.null rest then [] else [IntSet.toList rest]
+        LeafF Nothing -> []
+        LeafF (Just rest) -> [IntSet.toList rest]
         FlowerF a rest -> [a : IntSet.toList rest]
         BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 

@@ -121,9 +121,9 @@ topPDF' pos rs r t = L.fold L.sum $
     probeDensity = orbitalPDF (kFromRating r) t
     partials = Util.processCombsInt alg (length rs) . subtract 1
     alg = \case
-        Util.LeafF rest -> if IntSet.null rest
-            then 0
-            else L.fold L.product ((wvs !) <$> IntSet.toList rest)
+        Util.LeafF Nothing -> 0
+        Util.LeafF (Just rest) ->
+            L.fold L.product ((wvs !) <$> IntSet.toList rest)
         Util.FlowerF a rest -> (lvs ! a)
             * L.fold L.product ((wvs !) <$> IntSet.toList rest)
         Util.BranchF a bs -> (lvs ! a) * L.fold L.sum bs
@@ -138,8 +138,8 @@ perfModelTopStrength pos rs = 1 / integ
 
 
 example :: [Double]
-example = [2200,2100,1900,1870,1850,1600]
--- example = [2200,2100,1900,1870,1850,1600,1590,1570,1510,1420,1370,1350,1225]
+-- example = [2200,2100,1900,1870,1850,1600]
+example = [2200,2100,1900,1870,1850,1600,1590,1570,1510,1420,1370,1350,1225]
 
 -- >$> perfModelStrength [2200,2100,1900,1870,1850]
 --
