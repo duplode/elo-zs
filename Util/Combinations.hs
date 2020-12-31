@@ -11,7 +11,9 @@ module Util.Combinations where
 import Data.Bifunctor
 import Data.Functor.Foldable
 import Data.Functor.Foldable.TH
-import Data.List (tails)
+import Data.List (tails, foldl')
+import qualified Data.IntSet as IntSet
+import Data.IntSet (IntSet)
 
 -- | From a list prefix of n elements, generates all combinations of k
 -- elements, paired with the remaining n - k elements.
@@ -36,59 +38,96 @@ combinations n k as = go n k (take n as)
 
 bnom n k = product [(n-k+1)..n] `div` product [1..k]
 
-data Rose a = Leaf | Flower a | Branch a [Rose a]
+-- | A rose tree, adapted for generating combinations
+data CombRose z a = Leaf | Flower a z | Branch a [CombRose z a]
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-makeBaseFunctor ''Rose
+makeBaseFunctor ''CombRose
 
 
-combForest :: Int -> [a] -> [Rose a]
+combForest :: Int -> [a] -> [CombRose () a]
 combForest k as = ana nextLevel <$> ((k,) <$> tails as)
     where
-    nextLevel :: (Int, [a]) -> RoseF a (Int, [a])
+    nextLevel :: (Int, [a]) -> CombRoseF () a (Int, [a])
     nextLevel = \case
         (0, _) -> LeafF
         (_, []) -> LeafF
-        (1, a : _) -> FlowerF a
+        (1, a : _) -> FlowerF a ()
         (k, a : as) -> BranchF a ((k-1,) <$> tails as)
 
-makeCombs :: Rose a -> [[a]]
+makeCombs :: CombRose () a -> [[a]]
 makeCombs = cata $ \case
     LeafF -> []
-    FlowerF a -> [[a]]
+    FlowerF a _ -> [[a]]
     BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 
 data SP a b = SP !a !b
     deriving (Eq, Ord, Show)
 
+data STr a b c = STr !a !b !c
+    deriving (Eq, Ord, Show)
+
 hyloCombs :: Int -> [a] -> [[a]]
 hyloCombs k as = concat (hylo flattenAlg combCoalg <$> seeds)
     where
-    seeds = (k,) <$> tails as
-    combCoalg :: (Int, [a]) -> RoseF a (Int, [a])
-    combCoalg = \case
-        (0, _) -> LeafF
-        (_, []) -> LeafF
-        (1, a : _) -> FlowerF a
-        (k, a : as) ->
-            let k' = k - 1
-            in k' `seq` BranchF a ((k',) <$> tails as)
-        {-
     seeds = SP k <$> tails as
     combCoalg = \case
         SP 0 _ -> LeafF
         SP _ [] -> LeafF
-        SP 1 (a : _) -> FlowerF a
+        SP 1 (a : _) -> FlowerF a ()
         SP k (a : as) -> BranchF a (SP (k-1) <$> tails as)
-            -}
     flattenAlg = \case
         LeafF -> []
-        FlowerF a -> [[a]]
+        FlowerF a _ -> [[a]]
         BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
+
+hyloCombsInt :: Int -> Int -> [[Int]]
+hyloCombsInt n k = concat (hylo flattenAlg combCoalg <$> seeds)
+    where
+    as = [1..n]
+    seeds = SP k <$> tails as
+    combCoalg = \case
+        SP 0 _ -> LeafF
+        SP _ [] -> LeafF
+        SP 1 (a : _) -> FlowerF a ()
+        SP k (a : as) -> BranchF a (SP (k-1) <$> tails as)
+    flattenAlg = \case
+        LeafF -> []
+        FlowerF a _ -> [[a]]
+        BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
+
+processCombsInt :: (CombRoseF IntSet Int b -> b) -> Int -> Int -> [b]
+processCombsInt alg n k = hylo alg combCoalg <$> seeds
+    where
+    as = [1..n]
+    seeds = STr k (IntSet.fromList as) <$> tails as
+    combCoalg = \case
+        STr 0 _ _ -> LeafF
+        STr _ _ [] -> LeafF
+        STr 1 tracker (a : _) -> FlowerF a (IntSet.delete a tracker)
+        STr k tracker (a : as) ->
+            BranchF a (STr (k-1) (IntSet.delete a tracker) <$> tails as)
 
 test1 n = length $ combinations n 12 [1..]
 test2 n = length $ hyloCombs 12 [1..n]
+test3 n = length $ hyloCombsInt n 12
+
+test4 :: Int -> Int -> [Integer]
+test4 n k = processCombsInt alg n k
+    where
+    alg = \case
+        LeafF -> 0
+        FlowerF a rest -> fromIntegral a * IntSet.foldl' (\b k -> b * fromIntegral k) 1 rest
+        BranchF a bs -> fromIntegral a * foldl' (+) 0 (map fromIntegral bs)
+
+test5 :: Int -> Int -> [[Int]]
+test5 n k = concat $ processCombsInt alg n k
+    where
+    alg = \case
+        LeafF -> []
+        FlowerF a rest -> [a : IntSet.toList rest]
+        BranchF a asz -> (a :) <$> filter (not . null) (concat asz)
 
 -- >$> (length $ combinations 12 6 [1..12]) == bnom 12 6
 --
--- $> length (hyloCombs 12 [1..20]) == bnom 20 12
+-- >$> length (hyloCombs 12 [1..20]) == bnom 20 12
 
