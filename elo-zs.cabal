@@ -32,6 +32,7 @@ executable elo-zs
                      , Zak
                      , Zak.Misc
                      , Zak.Results
+                     , R4K.Results
                      , Util.Lone
                      , Util.Combinations
   -- other-extensions:
@@ -53,5 +54,9 @@ executable elo-zs
                      , pipes
                      , mtl
                      , recursion-schemes
+                     , ini
+                     , unordered-containers
+                     , filepath
+                     , directory
   -- hs-source-dirs:
   default-language:    Haskell2010
