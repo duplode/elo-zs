@@ -32,6 +32,7 @@ executable elo-zs
                      , Zak
                      , Zak.Misc
                      , Zak.Results
+                     , R4K
                      , R4K.Results
                      , Util.Lone
                      , Util.Combinations
