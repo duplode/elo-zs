@@ -319,15 +319,16 @@ perfTopStrength = id
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
 
-perfTopStrength' :: LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
-perfTopStrength' = LS.arrM integrateRaces <<< LS.generalize basicScan
+perfTopStrength' :: Int -> LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
+perfTopStrength' pos = LS.arrM integrateRaces <<< LS.generalize basicScan
     where
     basicScan = extend (\(AtRace ri rtgs)
             -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
         . distillRatings def {excludeProvisional=False}
         <$> allRatings
     integrateRaces ar = do
-        let ar' = fmap @AtRace (perfModelTopStrength 5 . map rating . Map.elems) ar
+        -- The top-N cutoff should be made properly configurable.
+        let ar' = fmap @AtRace (perfModelTopStrength pos . map rating . Map.elems) ar
         liftIO $ putStrLn ("Done race #" ++ show (raceIx ar') ++ " : " ++ show (extract ar'))
         return ar'
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri

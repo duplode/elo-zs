@@ -264,7 +264,7 @@ demoPerfTopStrength = testData def
 
 demoPerfTopStrength' :: IO (Tab.Table String String String)
 demoPerfTopStrength' = testData def
-    & LS.scanM perfTopStrength'
+    & LS.scanM (perfTopStrength' 5)
     >>= \res -> res & sortBy (comparing (Down . extract))
     & arrangeTable
         (fmap (toZakLabel . raceIx))

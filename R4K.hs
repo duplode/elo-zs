@@ -13,6 +13,7 @@ import Types
 import Tidying
 import Tabular
 import R4K.Results
+import R4K.Misc
 import Util.Lone
 
 import qualified Data.Map.Strict as Map
@@ -42,7 +43,7 @@ demoHighest = testData <&> \td -> td
     & arrangeTable
         (fmap show . zipWith const [1..])
         ["Racer", "Race", "Rating"]
-        (\(p, AtRace ri rtg) -> [T.unpack p, show ri, show rtg])
+        (\(p, AtRace ri rtg) -> [T.unpack p, toR4KLabel ri, show rtg])
 
 -- | Current rating and past peak rating for racers active within the last
 -- 12 races.
@@ -67,10 +68,10 @@ demoCurrent = testData <&> \td -> td
 
 demoPerfTopStrength' :: IO (Tab.Table String String String)
 demoPerfTopStrength' = testData
-    >>= LS.scanM perfTopStrength'
+    >>= LS.scanM (perfTopStrength' 3)
     >>= \res -> res & sortBy (comparing (Down . extract))
     & arrangeTable
         (fmap (show . raceIx))
         ["Ix", "Strength"]
-        (\(AtRace ri x) -> [show ri, show x])
+        (\(AtRace ri x) -> [toR4KLabel ri, show x])
     & return

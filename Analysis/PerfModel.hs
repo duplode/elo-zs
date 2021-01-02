@@ -136,7 +136,7 @@ example = [2200,2100,1900,1870,1850,1600]
 --
 -- >$> :set +s
 --
--- $> perfModelTopStrength 5 example - R.perfModelTopStrength 5 example
+-- >$> perfModelTopStrength 5 example - R.perfModelTopStrength 5 example
 
 -- >$> perfModelTopStrength 5 example
 

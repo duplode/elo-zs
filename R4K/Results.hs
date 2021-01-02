@@ -15,6 +15,7 @@ import Data.Ini
 import qualified Data.List.NonEmpty as NE
 import Data.Bool
 import Data.Function ((&))
+import Data.Functor ((<&>))
 import Data.Ord
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.List as List
@@ -26,7 +27,8 @@ import Control.Monad
 
 -- | Preprocessed sample data, ready for consumption.
 testData :: IO [NE.NonEmpty Standing]
-testData = traverse (parseScoreboard . (</> "thisrace.sb")) =<< raceDirs
+testData = (traverse (parseScoreboard . (</> "thisrace.sb")) =<< raceDirs)
+    <&> (++ extraRaces)
     where
     baseDir = "R4K" </> "data"
     raceDirs = do
@@ -46,8 +48,8 @@ parseScoreboard path = do
             & unifyAndSort
             & makeEntries
     where
-    shouldBeIncluded sect = List.lookup "style" sect == Just "RH"
-        && List.lookup "competing" sect == Nothing
+    shouldBeIncluded sect = List.lookup "competing" sect == Nothing
+        -- && List.lookup "style" sect == Just "RH"
     toPreEntry sect =
         ( fromJust $ List.lookup "name" sect
         , read . Text.unpack . fromJust $ List.lookup "lap" sect :: Int
@@ -61,3 +63,32 @@ parseScoreboard path = do
         op (prevRes, prevLap) (pip, lap)
             | lap == prevLap = (Result pip (result prevRes), lap)
             | otherwise  = (Result pip (result prevRes + 1), lap)
+
+extraRaces :: [NE.NonEmpty Standing]
+extraRaces = NE.fromList <$> [r202005, r202006]
+
+r202005 =
+    [ flip Result 1 "KyLiE"
+    , flip Result 2 "Seeker1982"
+    , flip Result 3 "Duplode"
+    , flip Result 4 "dreadnaut"
+    , flip Result 5 "afullo"
+    , flip Result 6 "Cas"
+    , flip Result 7 "Ralphy"
+    , flip Result 8 "Ayrton"
+    ]
+
+r202006 =
+    [ flip Result 1 "Seeker1982"
+    , flip Result 2 "KyLiE"
+    , flip Result 3 "dreadnaut"
+    , flip Result 4 "Duplode"
+    , flip Result 5 "Cas"
+    , flip Result 6 "Igor"
+    , flip Result 7 "afullo"
+    , flip Result 8 "Overdrijf"
+    , flip Result 9 "Ralphy"
+    , flip Result 10 "Octavius"
+    , flip Result 11 "Ayrton"
+    , flip Result 12 "Lulisa"
+    ]
