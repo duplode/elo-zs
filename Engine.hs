@@ -135,50 +135,45 @@ scoreDiscrepancy gap otc = wdlScore otc - expectedScore
 isProvisional :: PipData -> Bool
 isProvisional rtg = entries rtg < 5
 
--- | The core rating update engine.
-updateRatings
+
+-- | The original version of core rating update engine, which only updates
+-- ratings after computing all deltas.
+updateRatingsSimple
     :: forall p. Ord p
     => AtRace (Map p PipData)  -- ^ Ratings at the previous race.
     -> [FaceOff p]             -- ^ Matches of the current event.
     -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
-updateRatings (AtRace ri rtgs) =
-    AtRace ri' . updateCount . L.fold applyCurrentChanges
+updateRatingsSimple (AtRace ri rtgs) =
+    AtRace ri' . updateCount ri' . L.fold applyCurrentChanges . toDeltas
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
     where
     -- | Index of the current event.
     ri' = ri + 1
 
-    -- Provisional rating test, defaulting to True for new entrants. Note
-    -- that for the purposes of rating calculation the test is applied before
-    -- the update.
-    provisionalCheck :: Maybe PipData -> Bool
-    provisionalCheck = maybe True isProvisional
+    -- | Calculates individual rating changes from a list of matches.
+    toDeltas :: [FaceOff p] -> [(p, Double)]
+    toDeltas = concatMap $ \xy ->
+        let (dx, dy) = toDelta rtgs xy
+        in [dx, dy]
 
-    -- | Calculates individual rating changes from a single match.
-    toDelta :: Map p PipData -> FaceOff p -> ((p, Double), (p, Double))
-    toDelta rtgs xy =
-        let px = Map.lookup (player xy) rtgs
-            py = Map.lookup (opponent xy) rtgs
-            gap = maybe defRating rating px - maybe defRating rating py
-            (kx, ky)
-                | provisionalCheck px && not (provisionalCheck py) = (kHi, kLo)
-                | not (provisionalCheck px) && provisionalCheck py = (kLo, kHi)
-                | otherwise = (kBase, kBase)
-            baseDelta = scoreDiscrepancy gap (outcome xy)
-        in ((player xy, kx * baseDelta), (opponent xy, -ky * baseDelta))
+    -- | Applies all changes for the current race.
+    applyCurrentChanges :: L.Fold (p, Double) (Map p PipData)
+    applyCurrentChanges = L.Fold (applyChange ri') rtgs id
 
-    -- | Applies a rating change to the collection of ratings.
-    --
-    -- The last event index is updated here, as that should only be done for
-    -- players who took part in the current event.
-    applyChange :: Map p PipData -> (p, Double) -> Map p PipData
-    applyChange rtgs (p, d) = Map.alter upsertPip p rtgs
-        where
-        upsertPip :: Maybe PipData -> Maybe PipData
-        upsertPip =  Just . \case
-            Nothing -> PipData (defRating + d) 0 ri'
-            Just (PipData rtg n _) -> PipData (rtg + d) n ri'
+-- | The non-batching version of the core rating update engine.
+updateRatingsNoBatching
+    :: forall p. Ord p
+    => AtRace (Map p PipData)  -- ^ Ratings at the previous race.
+    -> [FaceOff p]             -- ^ Matches of the current event.
+    -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
+updateRatingsNoBatching (AtRace ri rtgs) =
+    AtRace ri' . updateCount ri' . L.fold applyCurrentChanges
+    -- The index used to be computed with a seq here. That is unnecessary now
+    -- that the corresponding AtRace field is strict.
+    where
+    -- | Index of the current event.
+    ri' = ri + 1
 
     -- | Applies all changes for the current race.
     applyCurrentChanges :: L.Fold (FaceOff p) (Map p PipData)
@@ -186,16 +181,8 @@ updateRatings (AtRace ri rtgs) =
         where
         applyBothChanges rtgs xy =
             let (dx, dy) = toDelta rtgs xy
-            in flip applyChange dy (flip applyChange dx rtgs)
+            in flip (applyChange ri') dy (flip (applyChange ri') dx rtgs)
 
-    -- | Updates the event count for players who took part in the current
-    -- event.
-    --
-    -- Performed in a separate step, so that the count is only increased once
-    -- per player who took part in the current event.
-    updateCount :: Map p PipData -> Map p PipData
-    updateCount = fmap (\(PipData rtg n i) ->
-        PipData rtg (bool id (+ 1) (i == ri') n) i)
 
 -- | Calculates ratings for all players after the final event.
 finalRatings
@@ -208,7 +195,7 @@ finalRatings = L.Fold
     where
     update = case batchingStrategy of
         Batching -> updateRatingsSimple
-        NoBatching -> updateRatings
+        NoBatching -> updateRatingsNoBatching
 
 -- | Calculates ratings for all players after each event.
 allRatings
@@ -217,65 +204,45 @@ allRatings
 allRatings = LS.postscan finalRatings
 
 
+-- Functions that are part of the core algorithm.
 
-
--- | The original version of core rating update engine, which only updates
--- ratings after computing all deltas.
-updateRatingsSimple
-    :: forall p. Ord p
-    => AtRace (Map p PipData)  -- ^ Ratings at the previous race.
-    -> [FaceOff p]             -- ^ Matches of the current event.
-    -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
-updateRatingsSimple (AtRace ri rtgs) =
-    AtRace ri' . updateCount . L.fold applyCurrentChanges . toDeltas
-    -- The index used to be computed with a seq here. That is unnecessary now
-    -- that the corresponding AtRace field is strict.
+-- | Calculates individual rating changes from a single match.
+toDelta :: Ord p => Map p PipData -> FaceOff p -> ((p, Double), (p, Double))
+toDelta rtgs xy =
+    let px = Map.lookup (player xy) rtgs
+        py = Map.lookup (opponent xy) rtgs
+        gap = maybe defRating rating px - maybe defRating rating py
+        (kx, ky)
+            | provisionalCheck px && not (provisionalCheck py) = (kHi, kLo)
+            | not (provisionalCheck px) && provisionalCheck py = (kLo, kHi)
+            | otherwise = (kBase, kBase)
+        baseDelta = scoreDiscrepancy gap (outcome xy)
+    in ((player xy, kx * baseDelta), (opponent xy, -ky * baseDelta))
     where
-    -- | Index of the current event.
-    ri' = ri + 1
-
     -- Provisional rating test, defaulting to True for new entrants. Note
     -- that for the purposes of rating calculation the test is applied before
     -- the update.
     provisionalCheck :: Maybe PipData -> Bool
     provisionalCheck = maybe True isProvisional
 
-    -- | Calculates individual rating changes from a list of matches.
-    toDeltas :: [FaceOff p] -> [(p, Double)]
-    toDeltas = concatMap $ \xy ->
-        let  -- In principle, these lookups might be performed once per
-             -- player, rather than twice per match.
-            px = Map.lookup (player xy) rtgs
-            py = Map.lookup (opponent xy) rtgs
-            gap = maybe defRating rating px - maybe defRating rating py
-            (kx, ky)
-                | provisionalCheck px && not (provisionalCheck py) = (kHi, kLo)
-                | not (provisionalCheck px) && provisionalCheck py = (kLo, kHi)
-                | otherwise = (kBase, kBase)
-            baseDelta = scoreDiscrepancy gap (outcome xy)
-        in [(player xy, kx * baseDelta), (opponent xy, -ky * baseDelta)]
+-- | Applies a rating change to the collection of ratings.
+--
+-- The last event index is updated here, as that should only be done for
+-- players who took part in the current event.
+applyChange :: Ord p => RaceIx -> Map p PipData -> (p, Double) -> Map p PipData
+applyChange ri' rtgs (p, d) = Map.alter upsertPip p rtgs
+    where
+    upsertPip :: Maybe PipData -> Maybe PipData
+    upsertPip =  Just . \case
+        Nothing -> PipData (defRating + d) 0 ri'
+        Just (PipData rtg n _) -> PipData (rtg + d) n ri'
 
-    -- | Applies a rating change to the collection of ratings.
-    --
-    -- The last event index is updated here, as that should only be done for
-    -- players who took part in the current event.
-    applyChange :: Map p PipData -> (p, Double) -> Map p PipData
-    applyChange rtgs (p, d) = Map.alter upsertPip p rtgs
-        where
-        upsertPip :: Maybe PipData -> Maybe PipData
-        upsertPip =  Just . \case
-            Nothing -> PipData (defRating + d) 0 ri'
-            Just (PipData rtg n _) -> PipData (rtg + d) n ri'
+-- | Updates the event count for players who took part in the current
+-- event.
+--
+-- Performed in a separate step, so that the count is only increased once
+-- per player who took part in the current event.
+updateCount :: Ord p => RaceIx -> Map p PipData -> Map p PipData
+updateCount ri' = fmap (\(PipData rtg n i) ->
+    PipData rtg (bool id (+ 1) (i == ri') n) i)
 
-    -- | Applies all changes for the current race.
-    applyCurrentChanges :: L.Fold (p, Double) (Map p PipData)
-    applyCurrentChanges = L.Fold applyChange rtgs id
-
-    -- | Updates the event count for players who took part in the current
-    -- event.
-    --
-    -- Performed in a separate step, so that the count is only increased once
-    -- per player who took part in the current event.
-    updateCount :: Map p PipData -> Map p PipData
-    updateCount = fmap (\(PipData rtg n i) ->
-        PipData rtg (bool id (+ 1) (i == ri') n) i)
