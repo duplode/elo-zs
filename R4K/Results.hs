@@ -28,7 +28,7 @@ import Control.Monad
 -- | Preprocessed sample data, ready for consumption.
 testData :: IO [NE.NonEmpty Standing]
 testData = (traverse (parseScoreboard . (</> "thisrace.sb")) =<< raceDirs)
-    <&> (++ extraRaces)
+    -- <&> (++ extraRaces)
     where
     baseDir = "R4K" </> "data"
     raceDirs = do
@@ -64,6 +64,7 @@ parseScoreboard path = do
             | lap == prevLap = (Result pip (result prevRes), lap)
             | otherwise  = (Result pip (result prevRes + 1), lap)
 
+    {-
 extraRaces :: [NE.NonEmpty Standing]
 extraRaces = NE.fromList <$> [r202005, r202006]
 
@@ -92,3 +93,4 @@ r202006 =
     , flip Result 11 "Ayrton"
     , flip Result 12 "Lulisa"
     ]
+    -}
