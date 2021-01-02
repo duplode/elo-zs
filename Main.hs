@@ -2,8 +2,8 @@ module Main where
 
 import Zak
 import Analysis.Simulation (SimOptions(..), SimM(..), runSimM)
+import Tabular
 
-import qualified Text.Tabular.Csv
 import Data.Function
 import Data.Default.Class
 import System.Random.MWC
@@ -17,12 +17,10 @@ simMain =  do
     seed <- save =<< createSystemRandom
     let simOpts = def -- { simRuns = 100000 }
     (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength simOpts
-    tab & Text.Tabular.Csv.render id id id
-        & writeFile "test.csv"
+    demoToCsv "test.csv" tab
     T.writeFile "last-seed.txt" $ T.pack . show $
         (fromSeed seed, fromSeed newSeed)
 
 perfMain = do
     tab <- demoPerfTopStrength'
-    tab & Text.Tabular.Csv.render id id id
-        & writeFile "test2.csv"
+    demoToCsv "test2.csv" tab

@@ -6,10 +6,12 @@
 module Tabular
     ( arrangeTable
     , demoPretty
+    , demoToCsv
     ) where
 
 import qualified Text.Tabular as Tab
-import qualified Text.Tabular.AsciiArt as Tab
+import qualified Text.Tabular.AsciiArt as Tab.Ascii
+import qualified Text.Tabular.Csv as Tab.Csv
 
 -- | Arrange a ranking or listing as a 'Table'.
 arrangeTable
@@ -25,5 +27,8 @@ arrangeTable mkRhs chs mkVals as = Tab.Table
 
 -- | Prints a 'Table' to the console.
 demoPretty :: Tab.Table String String String -> IO ()
-demoPretty t = putStrLn (Tab.render id id id t)
+demoPretty t = putStrLn (Tab.Ascii.render id id id t)
 
+-- | Prints a 'Table' to a CSV file.
+demoToCsv :: FilePath -> Tab.Table String String String -> IO ()
+demoToCsv path t = writeFile path (Tab.Csv.render id id id t)
