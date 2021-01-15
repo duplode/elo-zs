@@ -145,10 +145,11 @@ distillRatings ppopts = extend $
 
 -- | Prototype for scoring weighed by strength.
 simpleWeighedScores
-    :: LS.Scan
+    :: EloOptions
+    -> LS.Scan
         (N.NonEmpty (Result PipId Int))
         (AtRace (N.NonEmpty (Result PipId Double)))
-simpleWeighedScores
+simpleWeighedScores eopts
     = (\str rs -> AtRace (raceIx str)
         $ fmap @(Result _) (extract str *) <$> rs)
             <$> strength <*> basePoints
@@ -161,7 +162,7 @@ simpleWeighedScores
     strength = fmap @AtRace strengthConversion
         . accumulatedRatings
         . distillRatings def {excludeProvisional=False}
-        <$> allRatings
+        <$> allRatings eopts
     strengthConversion = logisticStrengthConversion
 
 -- | Race strength on a half-logistic slope, with an accumulated rating of
@@ -189,11 +190,13 @@ exponentialScoring nDrawn rank
 -- | A race strength metric obtained by giving extra weight to the strength
 -- of racers in the scoreboard midfield. Uses 'fixedMidfieldWeight' as
 -- weighing function.
-weighedStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
-weighedStrength = id  -- fmap @AtRace strengthConversion
+weighedStrength
+    :: EloOptions
+    -> LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+weighedStrength eopts = id  -- fmap @AtRace strengthConversion
     . accumulatedRatings
     . distillRatings def {excludeProvisional=False}
-    <$> (fmap @AtRace . preWeighing <$> returnA <*> allRatings)
+    <$> (fmap @AtRace . preWeighing <$> returnA <*> allRatings eopts)
     where
     -- Variable weighing is very similar to not having midfield weighing at
     -- all.
@@ -212,13 +215,14 @@ weighedStrength = id  -- fmap @AtRace strengthConversion
 -- but using 'weighedStrength' as weight for the score of each race. Uses
 -- 'exponentialScoring' as the base score system.
 weighedScores
-    :: LS.Scan
+    :: EloOptions
+    -> LS.Scan
         (N.NonEmpty (Result PipId Int))
         (AtRace (N.NonEmpty (Result PipId Double)))
-weighedScores
+weighedScores eopts
     = (\str rs -> AtRace (raceIx str)
         $ fmap @(Result _) (extract str *) <$> rs)
-            <$> weighedStrength <*> basePoints
+            <$> weighedStrength eopts <*> basePoints
     where
     basePoints = arr computeScores
     computeScores = join
@@ -277,12 +281,14 @@ variableMidfieldWeight n x = gaussian (peak - 1) (2/5) peak (fromIntegral x)
 -- metric, even though the independent matches scenario doesn't really
 -- reflect what goes on in a race. The reciprocal of the probabilities is
 -- obtained through 'reinvertedRatings'.
-reinvertedStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
-reinvertedStrength = id  -- fmap @AtRace strengthConversion
+reinvertedStrength
+    :: EloOptions
+    -> LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+reinvertedStrength eopts = id  -- fmap @AtRace strengthConversion
     . fmap (logBase 10)
     . reinvertedRatings
     . distillRatings def {excludeProvisional=False}
-    <$> allRatings
+    <$> allRatings eopts
 
 -- | Reciprocal of the probability of a 1500-rated probe-racer (see also
 -- 'reinvertedStrength') winning independent head-to-head matches against
@@ -299,33 +305,40 @@ reinvertedRatings
 -- 'Analysis.PerfModel.perfModelStrength'. Computationally cheap, but not a
 -- full reflection of the strength of a race, with a very small handful of
 -- top racers being able to largely determine the result.
-perfStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
-perfStrength = id
+perfStrength
+    :: EloOptions
+    -> LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+perfStrength eopts = id
     . fmap @AtRace (perfModelStrength . map rating . Map.elems)
     . extend (\(AtRace ri rtgs)
         -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
     . distillRatings def {excludeProvisional=False}
-    <$> allRatings
+    <$> allRatings eopts
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
 
-perfTopStrength :: LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
-perfTopStrength = id
+perfTopStrength
+    :: EloOptions
+    -> LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+perfTopStrength eopts = id
     . fmap @AtRace (perfModelTopStrength 5 . map rating . Map.elems)
     . extend (\(AtRace ri rtgs)
         -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
     . distillRatings def {excludeProvisional=False}
-    <$> allRatings
+    <$> allRatings eopts
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
 
-perfTopStrength' :: Int -> LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
-perfTopStrength' pos = LS.arrM integrateRaces <<< LS.generalize basicScan
+perfTopStrength'
+    :: EloOptions
+    -> Int  -- ^ Which top-N probability to use.
+    -> LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
+perfTopStrength' eopts pos = LS.arrM integrateRaces <<< LS.generalize basicScan
     where
     basicScan = extend (\(AtRace ri rtgs)
             -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
         . distillRatings def {excludeProvisional=False}
-        <$> allRatings
+        <$> allRatings eopts
     integrateRaces ar = do
         -- The top-N cutoff should be made properly configurable.
         let ar' = fmap @AtRace (perfModelTopStrength pos . map rating . Map.elems) ar
@@ -339,16 +352,17 @@ perfTopStrength' pos = LS.arrM integrateRaces <<< LS.generalize basicScan
 -- expensive, but gives a much better picture than using victory
 -- probabilities.
 simStrength
-    :: SimOptions
+    :: EloOptions
+    -> SimOptions
     -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) (AtRace Double)
-simStrength simOpts =
+simStrength eopts simOpts =
     LS.arrM runSimsForRace <<< LS.generalize basicScan
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
     basicScan = extend (\(AtRace ri rtgs)
             -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
         . distillRatings def {excludeProvisional=False}
-        <$> allRatings
+        <$> allRatings eopts
     runSimsForRace = codistributeL . fmap @AtRace (simModelStrength simOpts)
         <=< (\ar -> liftIO $ putStrLn ("Runs for race #" ++ show (raceIx ar))
             >> return ar)

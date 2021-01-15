@@ -16,6 +16,8 @@ module Types (
     , WDL(..)
     , FaceOff(..)
     , FaceOff'
+    , EloOptions(..)
+    , BatchingStrategy(..)
     -- * Race index tagging
     , AtRace(..)
     , raceIx
@@ -32,6 +34,7 @@ import Control.Comonad
 import Data.Functor.Adjunction
 import Data.Functor.Rep
 import Data.Distributive
+import Data.Default.Class
 
 -- | Concrete identifier for the racers/players being ranked.
 type PipId = T.Text
@@ -80,6 +83,60 @@ data FaceOff p = FaceOff
 -- | Concrete match record type.
 type FaceOff' = FaceOff PipId
 
+-- | Parameters for the core Elo engine.
+data EloOptions = EloOptions
+    {   -- | Modulation (or, as Glickman puts it, attenuation) factor for rating
+        -- changes. A value, such as 16, lower than the standard one for chess, 24
+        -- might be used to compensate for the high number of matches in a typical
+        -- race.
+      eloModulation :: Double
+        -- | Correction factor for the modulation in matches involving one player
+        -- with a provisional rating.
+        --
+        -- With values above 1, provisionally rated players will have a higher
+        -- modulation factor, so that their ratings converge more quickly, and
+        -- their opponents with non-provisional ratings will ratings have a
+        -- lower modulation factor, so that their ratings are less affected by
+        -- matches against players with uncertain ratings.
+        --
+        -- Using different modulation factors in a single match means a match can
+        -- cause a net change on the accumulated rating of the player pool. On
+        -- why that is less of a problem than it might seem at first, see
+        -- Glickman (1995), p. 36.
+    , eloProvisionalFactor :: Double
+        -- | How many positions above and below each racer on the scoreboard
+        -- should be used to arrange matches. If 'Nothing', use all possible
+        -- matches.
+        --
+        -- This cutoff for remote matches helps keeping outlier results and
+        -- racer number variations from having an exaggerated effect on the
+        -- rankings.
+    , eloRemoteCutoff :: Maybe Int
+        -- | Whether to batch rating updates.
+    , eloBatchingStrategy :: BatchingStrategy
+    }
+    deriving (Eq, Show)
+
+instance Default EloOptions where
+    def = EloOptions
+        { eloModulation = 24
+        , eloProvisionalFactor = 2
+        , eloRemoteCutoff = Just 6
+        , eloBatchingStrategy = Batching
+        }
+
+-- | A flag for specifying whether, in the Elo engine, to batch rating updates
+-- for a race (that is, to use the ratings before the race for all matches) or
+-- not (that is, to update ratings on the fly after each match is processed).
+--
+-- Batching is arguably the more orthodox way of processing matches. Turning
+-- off batching tends to slow down rating swings to some extent, as if
+-- compensating for the correlation between results of matches involving the
+-- same racer in a race.
+data BatchingStrategy = Batching | NoBatching
+    deriving (Eq, Ord, Show)
+
+
 -- | A value tagged with a race index. Uses include race identification and
 -- application of player activity windows.
 --
@@ -106,7 +163,7 @@ instance Comonad AtRace where
     extract (AtRace _ a) = a
     extend f ar@(AtRace ri _) = AtRace ri (f ar)
 
--- ^ An unremarkable right adjoint for 'AtRace'. The only reason it exists
+-- | An unremarkable right adjoint for 'AtRace'. The only reason it exists
 -- here is so that a 'Lone' constraint on 'AtRace' can be satisfied.
 --
 -- It is not /entirely/ impossible there might be some use for a stream
@@ -125,3 +182,5 @@ instance Representable CoatRace where
 instance Adjunction AtRace CoatRace where
     leftAdjunct uc = \a -> CoatRace $ \ri -> uc (AtRace ri a)
     rightAdjunct cr = \(AtRace ri a) -> let (CoatRace g) = cr a in g ri
+
+

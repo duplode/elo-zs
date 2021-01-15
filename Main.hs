@@ -16,11 +16,12 @@ main = perfMain
 simMain =  do
     seed <- save =<< createSystemRandom
     let simOpts = def -- { simRuns = 100000 }
-    (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength simOpts
+    (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength def simOpts
     demoToCsv "test.csv" tab
     T.writeFile "last-seed.txt" $ T.pack . show $
         (fromSeed seed, fromSeed newSeed)
 
 perfMain = do
-    tab <- demoPerfTopStrength'
+    let eopts = def
+    tab <- demoPerfTopStrength' eopts
     demoToCsv "test2.csv" tab

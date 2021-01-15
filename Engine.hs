@@ -27,57 +27,9 @@ import qualified Control.Foldl as L
 import qualified Control.Scanl as LS
 import Data.List
 
--- Key configuration variables for the engine.
-
--- | Modulation (or, as Glickman puts it, attenuation) factor for rating
--- changes. A value, such as 16, lower than the standard one for chess, 24
--- might be used to compensate for the high number of matches in a typical
--- race.
-kBase :: Double
-kBase = 24
-
--- | Players with provisional ratings have a higher modulation factor, so
--- that their ratings converge more quickly.
-kHi :: Double
-kHi = kBase * 2
-
--- | Opponents of players with provisional ratings have a lower
--- modulation factor, so that their ratings are less affected by matches
--- against players with uncertain ratings.
---
--- Using different modulation factors in a single match means a match can
--- cause a net change on the accumulated rating of the player pool. On
--- why that is less of a problem than it might seem at first, see
--- Glickman (1995), p. 36.
-kLo :: Double
-kLo = kBase / 2
-
 -- | Initial rating for new players.
 defRating :: Double
 defRating = 1500
-
--- | How many positions above and below each racer on the scoreboard should be
--- used to arrange matches. If 'Nothing', use all possible matches.
---
--- This cutoff for remote matches helps keeping outlier results and racer
--- number variations from having an exaggerated effect on the rankings.
-remoteCutoff :: Maybe Int
-remoteCutoff = Just 6
-
--- | A flag for Whether to batch rating updates for a race (that is, to use
--- the ratings before the race for all matches) or not (that is, to update
--- ratings on the fly after each match is processed).
---
--- Batching is arguably the more orthodox way of processing matches. Turning
--- off batching tends to slow down rating swings to some extent, as if
--- compensating for the correlation between results of matches involving the
--- same racer in a race.
-data BatchingStrategy = Batching | NoBatching
-
--- | Which batching strategy to use.
-batchingStrategy :: BatchingStrategy
-batchingStrategy = Batching
-
 
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
@@ -102,9 +54,9 @@ faceOff x y = FaceOff
 
 -- | Given race results for multiple racers, generate all one-on-one matches
 -- between them. Each combination of two players generates one match.
-toFaceOffs :: Ord a => NE.NonEmpty (Result p a) -> [FaceOff p]
-toFaceOffs xs = concat . transpose
-    . maybe id (map . take) remoteCutoff
+toFaceOffs :: Ord a => EloOptions -> NE.NonEmpty (Result p a) -> [FaceOff p]
+toFaceOffs eopts xs = concat . transpose
+    . maybe id (map . take) (eloRemoteCutoff eopts)
     . NE.toList
     $ xs =>> \(y :| ys) -> faceOff y <$> ys
 -- The match matrix is transposed before concatenation so that, if we choose
@@ -140,10 +92,11 @@ isProvisional rtg = entries rtg < 5
 -- ratings after computing all deltas.
 updateRatingsSimple
     :: forall p. Ord p
-    => AtRace (Map p PipData)  -- ^ Ratings at the previous race.
+    => EloOptions
+    -> AtRace (Map p PipData)  -- ^ Ratings at the previous race.
     -> [FaceOff p]             -- ^ Matches of the current event.
     -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
-updateRatingsSimple (AtRace ri rtgs) =
+updateRatingsSimple eopts (AtRace ri rtgs) =
     AtRace ri' . updateCount ri' . L.fold applyCurrentChanges . toDeltas
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
@@ -151,10 +104,15 @@ updateRatingsSimple (AtRace ri rtgs) =
     -- | Index of the current event.
     ri' = ri + 1
 
+    -- Modulation factors.
+    kBase = eloModulation eopts
+    kHi = kBase * eloProvisionalFactor eopts
+    kLo = kBase / eloProvisionalFactor eopts
+
     -- | Calculates individual rating changes from a list of matches.
     toDeltas :: [FaceOff p] -> [(p, Double)]
     toDeltas = concatMap $ \xy ->
-        let (dx, dy) = toDelta rtgs xy
+        let (dx, dy) = toDelta (kBase, kHi, kLo) rtgs xy
         in [dx, dy]
 
     -- | Applies all changes for the current race.
@@ -164,10 +122,11 @@ updateRatingsSimple (AtRace ri rtgs) =
 -- | The non-batching version of the core rating update engine.
 updateRatingsNoBatching
     :: forall p. Ord p
-    => AtRace (Map p PipData)  -- ^ Ratings at the previous race.
+    => EloOptions
+    -> AtRace (Map p PipData)  -- ^ Ratings at the previous race.
     -> [FaceOff p]             -- ^ Matches of the current event.
     -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
-updateRatingsNoBatching (AtRace ri rtgs) =
+updateRatingsNoBatching eopts (AtRace ri rtgs) =
     AtRace ri' . updateCount ri' . L.fold applyCurrentChanges
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
@@ -175,40 +134,51 @@ updateRatingsNoBatching (AtRace ri rtgs) =
     -- | Index of the current event.
     ri' = ri + 1
 
+    -- Modulation factors.
+    kBase = eloModulation eopts
+    kHi = kBase * eloProvisionalFactor eopts
+    kLo = kBase / eloProvisionalFactor eopts
+
     -- | Applies all changes for the current race.
     applyCurrentChanges :: L.Fold (FaceOff p) (Map p PipData)
     applyCurrentChanges = L.Fold applyBothChanges rtgs id
         where
         applyBothChanges rtgs xy =
-            let (dx, dy) = toDelta rtgs xy
+            let (dx, dy) = toDelta (kBase, kHi, kLo) rtgs xy
             in flip (applyChange ri') dy (flip (applyChange ri') dx rtgs)
 
 
 -- | Calculates ratings for all players after the final event.
 finalRatings
     :: Ord p
-    => L.Fold (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
-finalRatings = L.Fold
-    (\ar xs -> update ar (toFaceOffs xs))
+    => EloOptions
+    -> L.Fold (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
+finalRatings eopts = L.Fold
+    (\ar xs -> update ar (toFaceOffs eopts xs))
     (AtRace 0 Map.empty)
     id
     where
-    update = case batchingStrategy of
-        Batching -> updateRatingsSimple
-        NoBatching -> updateRatingsNoBatching
+    update = case eloBatchingStrategy eopts of
+        Batching -> updateRatingsSimple eopts
+        NoBatching -> updateRatingsNoBatching eopts
 
 -- | Calculates ratings for all players after each event.
 allRatings
     :: Ord p
-    => LS.Scan (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
-allRatings = LS.postscan finalRatings
+    => EloOptions
+    -> LS.Scan (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
+allRatings eopts = LS.postscan (finalRatings eopts)
 
 
 -- Functions that are part of the core algorithm.
 
 -- | Calculates individual rating changes from a single match.
-toDelta :: Ord p => Map p PipData -> FaceOff p -> ((p, Double), (p, Double))
-toDelta rtgs xy =
+toDelta :: Ord p
+        => (Double, Double, Double)  -- ^ Modulation factors (base, high, low).
+        -> Map p PipData
+        -> FaceOff p
+        -> ((p, Double), (p, Double))
+toDelta (kBase, kHi, kLo) rtgs xy =
     let px = Map.lookup (player xy) rtgs
         py = Map.lookup (opponent xy) rtgs
         gap = maybe defRating rating px - maybe defRating rating py

@@ -34,11 +34,11 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Control.Monad
 import Data.Maybe
 
-demoHighest :: IO (Tab.Table String String String)
-demoHighest = testData <&> \td -> td
+demoHighest :: EloOptions -> IO (Tab.Table String String String)
+demoHighest eopts = testData <&> \td -> td
     & L.fold
         (highestPerPip `o`
-            (distillRatings def {excludeProvisional=True} <$> finalRatings))
+            (distillRatings def {excludeProvisional=True} <$> finalRatings eopts))
     & Map.toList & sortBy (comparing (Down . extract . snd))
     & arrangeTable
         (fmap show . zipWith const [1..])
@@ -47,8 +47,8 @@ demoHighest = testData <&> \td -> td
 
 -- | Current rating and past peak rating for racers active within the last
 -- 12 races.
-demoCurrent :: IO (Tab.Table String String String)
-demoCurrent = testData <&> \td -> td
+demoCurrent :: EloOptions -> IO (Tab.Table String String String)
+demoCurrent eopts = testData <&> \td -> td
     -- Using a prescan for highestPerPeak is intentional, as it gives the
     -- peak before the last update, which is an interesting information.
     -- To check: is the composed scan here sufficiently strict?
@@ -64,11 +64,11 @@ demoCurrent = testData <&> \td -> td
     where
     ratingsFold
         = distillRatings def {activityCut=Just 12, excludeProvisional=True}
-        <$> allRatings
+        <$> allRatings eopts
 
-demoPerfTopStrength' :: IO (Tab.Table String String String)
-demoPerfTopStrength' = testData
-    >>= LS.scanM (perfTopStrength' 3)
+demoPerfTopStrength' :: EloOptions -> IO (Tab.Table String String String)
+demoPerfTopStrength' eopts = testData
+    >>= LS.scanM (perfTopStrength' eopts 3)
     >>= \res -> res & sortBy (comparing (Down . extract))
     & arrangeTable
         (fmap (show . raceIx))
