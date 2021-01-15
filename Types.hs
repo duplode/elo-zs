@@ -104,6 +104,12 @@ data EloOptions = EloOptions
         -- why that is less of a problem than it might seem at first, see
         -- Glickman (1995), p. 36.
     , eloProvisionalFactor :: Double
+        -- The number of earlier events a player must have taken part in so that
+        -- their rating isn't counted as provisional in the current event. For
+        -- instance, the default value of 5 means the rating ceases being
+        -- provisional after the fifth event, while 0 disables provisional
+        -- ratings.
+    , eloProvisionalGraduation :: Int
         -- | How many positions above and below each racer on the scoreboard
         -- should be used to arrange matches. If 'Nothing', use all possible
         -- matches.
@@ -121,6 +127,7 @@ instance Default EloOptions where
     def = EloOptions
         { eloModulation = 24
         , eloProvisionalFactor = 2
+        , eloProvisionalGraduation = 5
         , eloRemoteCutoff = Just 6
         , eloBatchingStrategy = Batching
         }

@@ -38,7 +38,7 @@ demoHighest :: EloOptions -> IO (Tab.Table String String String)
 demoHighest eopts = testData <&> \td -> td
     & L.fold
         (highestPerPip `o`
-            (distillRatings def {excludeProvisional=True} <$> finalRatings eopts))
+            (distillRatings eopts def {excludeProvisional=True} <$> finalRatings eopts))
     & Map.toList & sortBy (comparing (Down . extract . snd))
     & arrangeTable
         (fmap show . zipWith const [1..])
@@ -63,7 +63,7 @@ demoCurrent eopts = testData <&> \td -> td
         (\(p, (rtg, pk)) -> [T.unpack p, show rtg, show pk])
     where
     ratingsFold
-        = distillRatings def {activityCut=Just 12, excludeProvisional=True}
+        = distillRatings eopts def {activityCut=Just 12, excludeProvisional=True}
         <$> allRatings eopts
 
 demoPerfTopStrength' :: EloOptions -> IO (Tab.Table String String String)

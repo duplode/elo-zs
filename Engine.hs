@@ -83,10 +83,10 @@ scoreDiscrepancy gap otc = wdlScore otc - expectedScore
 
 -- | Is the player rating provisional?
 --
--- A rating is considered provisional until the player has taken part in five
--- events.
-isProvisional :: PipData -> Bool
-isProvisional rtg = entries rtg < 5
+-- Note the comparison should be pefromed with the number of entries before
+-- the current event.
+isProvisional :: EloOptions -> PipData -> Bool
+isProvisional eopts rtg = entries rtg < eloProvisionalGraduation eopts
 
 
 -- | The original version of core rating update engine, which only updates
@@ -105,15 +105,10 @@ updateRatingsSimple eopts (AtRace ri rtgs) =
     -- | Index of the current event.
     ri' = ri + 1
 
-    -- Modulation factors.
-    kBase = eloModulation eopts
-    kHi = kBase * eloProvisionalFactor eopts
-    kLo = kBase / eloProvisionalFactor eopts
-
     -- | Calculates individual rating changes from a list of matches.
     toDeltas :: [FaceOff p] -> [(p, Double)]
     toDeltas = concatMap $ \xy ->
-        let (dx, dy) = toDelta (kBase, kHi, kLo) rtgs xy
+        let (dx, dy) = toDelta eopts rtgs xy
         in [dx, dy]
 
     -- | Applies all changes for the current race.
@@ -135,17 +130,12 @@ updateRatingsNoBatching eopts (AtRace ri rtgs) =
     -- | Index of the current event.
     ri' = ri + 1
 
-    -- Modulation factors.
-    kBase = eloModulation eopts
-    kHi = kBase * eloProvisionalFactor eopts
-    kLo = kBase / eloProvisionalFactor eopts
-
     -- | Applies all changes for the current race.
     applyCurrentChanges :: L.Fold (FaceOff p) (Map p PipData)
     applyCurrentChanges = L.Fold applyBothChanges rtgs id
         where
         applyBothChanges rtgs xy =
-            let (dx, dy) = toDelta (kBase, kHi, kLo) rtgs xy
+            let (dx, dy) = toDelta eopts rtgs xy
             in flip (applyChange ri') dy (flip (applyChange ri') dx rtgs)
 
 
@@ -183,17 +173,19 @@ previousRatings eopts = LS.prescan (finalRatings eopts)
 
 -- | Calculates individual rating changes from a single match.
 toDelta :: Ord p
-        => (Double, Double, Double)  -- ^ Modulation factors (base, high, low).
+        => EloOptions
         -> Map p PipData
         -> FaceOff p
         -> ((p, Double), (p, Double))
-toDelta (kBase, kHi, kLo) rtgs xy =
+toDelta eopts rtgs xy =
     let px = Map.lookup (player xy) rtgs
         py = Map.lookup (opponent xy) rtgs
         gap = maybe defRating rating px - maybe defRating rating py
         (kx, ky)
-            | provisionalCheck px && not (provisionalCheck py) = (kHi, kLo)
-            | not (provisionalCheck px) && provisionalCheck py = (kLo, kHi)
+            | provisionalCheck px && not (provisionalCheck py)
+                = (kHi, kLo)
+            | not (provisionalCheck px) && provisionalCheck py
+                = (kLo, kHi)
             | otherwise = (kBase, kBase)
         baseDelta = scoreDiscrepancy gap (outcome xy)
     in ((player xy, kx * baseDelta), (opponent xy, -ky * baseDelta))
@@ -202,7 +194,13 @@ toDelta (kBase, kHi, kLo) rtgs xy =
     -- that for the purposes of rating calculation the test is applied before
     -- the update.
     provisionalCheck :: Maybe PipData -> Bool
-    provisionalCheck = maybe True isProvisional
+    provisionalCheck = maybe True (isProvisional eopts)
+
+    -- Modulation factors.
+    kBase = eloModulation eopts
+    kHi = kBase * eloProvisionalFactor eopts
+    kLo = kBase / eloProvisionalFactor eopts
+
 
 -- | Applies a rating change to the collection of ratings.
 --
