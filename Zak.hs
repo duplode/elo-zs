@@ -282,3 +282,27 @@ demoSimStrength eopts simOptions = testData def
         ["Ix", "Strength"]
         (\(AtRace ri x) -> [show ri, show x])
     & return
+
+
+demoNdcg :: EloOptions -> Tab.Table String String String
+demoNdcg eopts = testData def
+    & LS.scan (ndcg eopts)
+    & zip [1..]
+    & drop 1  -- TODO: Figure out how to get useful results for the first race.
+    & arrangeTable
+         (fmap (show . fst))
+         ["NDCG"]
+         (\(_, x) -> [show x])
+
+demoNdcgComparison :: [(String, EloOptions)] -> Tab.Table String String String
+demoNdcgComparison experiments =
+    map (\eopts -> LS.scan (ndcg eopts) (testData def)) eoptss
+    & transpose
+    & zip [1..]
+    & drop 1  -- TODO: Figure out how to get useful results for the first race.
+    & arrangeTable
+         (fmap (show . fst))
+         titles
+         (\(_, xs) -> map show xs)
+    where
+    (titles, eoptss) = N.unzip experiments

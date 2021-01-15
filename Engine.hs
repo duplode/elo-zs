@@ -11,6 +11,7 @@
 module Engine
     ( finalRatings
     , allRatings
+    , previousRatings
     , isProvisional
     ) where
 
@@ -168,6 +169,14 @@ allRatings
     => EloOptions
     -> LS.Scan (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
 allRatings eopts = LS.postscan (finalRatings eopts)
+
+-- | Calculates ratings for all players before each event. Typically used for
+-- meta-metrics, such as evaluating predictions.
+previousRatings
+    :: Ord p
+    => EloOptions
+    -> LS.Scan (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
+previousRatings eopts = LS.prescan (finalRatings eopts)
 
 
 -- Functions that are part of the core algorithm.

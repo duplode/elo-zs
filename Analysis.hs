@@ -19,6 +19,7 @@ import Control.Arrow
 import Data.Maybe
 import Data.Default.Class
 import qualified Data.List.NonEmpty as N
+import Data.List
 import Control.Monad
 import Control.Monad.Trans
 
@@ -366,3 +367,56 @@ simStrength eopts simOpts =
     runSimsForRace = codistributeL . fmap @AtRace (simModelStrength simOpts)
         <=< (\ar -> liftIO $ putStrLn ("Runs for race #" ++ show (raceIx ar))
             >> return ar)
+
+-- | Normalized discounted cumulative gain, implemented as a rating system
+-- evaluation metric along the lines of Dehpanah et al.,
+-- [/The Evaluation of Rating Systems in Online Free-for-All Games/](https://arxiv.org/abs/2008.06787v1)
+-- (2020). See also https://en.wikipedia.org/wiki/Discounted_cumulative_gain .
+ndcg :: EloOptions -> LS.Scan (N.NonEmpty (Result PipId Int)) Double
+ndcg eopts = previousRatings eopts &&& returnA
+    >>> arr (uncurry pickActives)
+    >>> arr (expectedRanks *** actualRanks)
+    >>> arr (uncurry computeNdcg)
+    where
+    -- The order is such that both rank lists are ordered by pipsqueak tag.
+    expectedRanks = id
+        . map snd
+        . sortBy (comparing fst)
+        . zipWith (\n (p, _) -> (p, n)) [1..]
+        . sortBy (comparing (Down . rating . snd))
+        . Map.assocs
+    -- Using the race results to only keep previous ratings for those who took
+    -- part in the current race.
+    pickActives rtgs entries =
+        let selector = Map.fromList
+                . map (\(Result p x) -> (p, x))
+                . N.toList
+                $ entries
+        in (Map.intersectionWith const (extract rtgs) selector, entries)
+    actualRanks = id
+        . map result
+        . sortBy (comparing pipsqueakTag)
+        . tidyRanks
+    computeNdcg exs acs = L.fold ndcgFold (zipWith ndcgParcel exs acs)
+    ndcgParcel ex ac = SP (log 2 / log (ac + 1)) (1 / (1 + abs (ac - ex)))
+    ndcgFold = L.Fold
+        (\(SP norm acc) (SP normParcel parcel)
+            -> SP (norm + normParcel) (acc + normParcel * parcel))
+        (SP 0 0)
+        (\(SP idcg acc) -> acc / idcg)
+
+data SP a b = SP !a !b
+
+tidyRanks :: N.NonEmpty (Result PipId Int) -> [Result PipId Double]
+tidyRanks =
+    -- sortBy (comparing pipsqueakTag)
+    concatMap (\(n, g) -> fmap @(Result _) (n+) <$> g)
+    -- Accumulates the base positions by counting elements from the previous
+    -- groups.
+    . scanl1 (\(n, g) (_, g') -> (n + fromIntegral (length g), g'))
+    . zip [1..]
+    -- Replaces the reported result with a draw adjustment.
+    . map (\g ->
+        fmap @(Result _) (const (fromIntegral (length g - 1) / 2)) <$> N.toList g)
+    . N.groupAllWith result
+    . N.toList
