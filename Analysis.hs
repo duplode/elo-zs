@@ -428,3 +428,44 @@ tidyRanks =
         fmap @(Result _) (const (fromIntegral (length g - 1) / 2)) <$> N.toList g)
     . N.groupAllWith result
     . N.toList
+
+simExpectedPos
+    :: EloOptions
+    -> SimOptions
+    -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) [Double]
+simExpectedPos eopts simOpts =
+    LS.arrM (fmap postProcess . runSimsForRace) <<< LS.generalize basicScan
+    where
+    postProcess = Map.elems . extract
+    -- Is the distilling and filtering needed here?
+    isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
+    basicScan = extend (\(AtRace ri rtgs)
+            -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
+        . distillRatings eopts def {excludeProvisional=False}
+        <$> previousRatings eopts
+    runSimsForRace = codistributeL . fmap @AtRace (simAveragePositions simOpts)
+        <=< (\ar -> liftIO $ putStrLn ("Runs for race #" ++ show (raceIx ar))
+            >> return ar)
+
+-- | NDCG, but using expected positions from simulations rather than just
+-- the order of ratings.
+ndcgSim
+    :: EloOptions
+    -> SimOptions
+    -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) Double
+ndcgSim eopts simOpts = simExpectedPos eopts simOpts &&& LS.generalize (arr actualRanks)
+    >>> LS.generalize (arr (uncurry computeNdcg))
+    where
+    actualRanks = id
+        . map result
+        . sortBy (comparing pipsqueakTag)
+        . tidyRanks
+    computeNdcg exs acs = L.fold ndcgFold (zipWith ndcgParcel exs acs)
+    ndcgParcel ex ac = SP (log 2 / log (ac + 1)) (1 / (1 + abs (ac - ex)))
+    ndcgFold = L.Fold
+        (\(SP norm acc) (SP normParcel parcel)
+            -> SP (norm + normParcel) (acc + normParcel * parcel))
+        (SP 0 0)
+        (\(SP idcg acc) -> acc / idcg)
+
+-- >$> fmap ((!! 103) . fst) $ runSimM Nothing $ LS.scanM (simExpectedPos def def{simRuns = 100}) (testData def)

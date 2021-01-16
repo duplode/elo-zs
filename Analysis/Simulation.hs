@@ -12,6 +12,7 @@ module Analysis.Simulation
     , runExperimentPip
     , runExperimentProbe
     , simModelStrength
+    , simAveragePositions
     , SimM(..)
     , runSimM
     , evalSimM
@@ -149,6 +150,15 @@ simModelStrength simOpts = fmap ((fromIntegral nRuns /) . fromIntegral
     where
     nRuns = simRuns simOpts
     isTargetReached = (<= simTarget simOpts)
+
+-- | Average positions attained by racers in the simulations.
+simAveragePositions :: SimOptions -> Ratings -> SimM (Map SimPip Double)
+simAveragePositions simOpts = fmap (fmap (/ fromIntegral nRuns)
+        . Map.mapKeysWith (+) fst
+        . Map.mapWithKey (\(p, i) m -> fromIntegral i * fromIntegral m))
+    . runExperimentFull nRuns . toSimPips []
+    where
+    nRuns = simRuns simOpts
 
 
 data SimOptions = SimOptions

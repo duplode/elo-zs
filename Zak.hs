@@ -306,3 +306,14 @@ demoNdcgComparison experiments =
          (\(_, xs) -> map show xs)
     where
     (titles, eoptss) = N.unzip experiments
+
+demoNdcgSim :: EloOptions -> SimOptions -> SimM (Tab.Table String String String)
+demoNdcgSim eopts simOpts = testData def
+    & LS.scanM (ndcgSim eopts simOpts)
+    >>= \res -> res & zip [1..]
+    & drop 1  -- TODO: Figure out how to get useful results for the first race.
+    & arrangeTable
+         (fmap (show . fst))
+         ["NDCG"]
+         (\(_, x) -> [show x])
+    & return
