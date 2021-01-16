@@ -161,36 +161,6 @@ simAveragePositions simOpts = fmap (fmap (/ fromIntegral nRuns)
     nRuns = simRuns simOpts
 
 
-data SimOptions = SimOptions
-    { simProbeRating :: Double -- ^ Rating of the probe that will be used
-                               -- as a reference in the strength
-                               -- calculations.
-    , simTarget :: Int         -- ^ Tally the top-n results attained by
-                               -- the probe.
-    , simRuns :: Int           -- ^ How many times each race should be
-                               -- simulated.
-    }
-    deriving (Eq, Show)
-
-instance Default SimOptions where
-    def = SimOptions
-        { simProbeRating = 1500
-        , simTarget = 5
-        , simRuns = 10000
-        }
-
--- | A state monad for threading generator state.
-newtype SimM a = SimM { getSimM :: StateT Seed IO a }
-    deriving (Functor, Applicative, Monad, MonadState Seed, MonadIO)
-
-runSimM :: Maybe Seed -> SimM a -> IO (a, Seed)
-runSimM mSeed sim = do
-    seed <- maybe createSystemSeed return mSeed
-    runStateT (getSimM sim) seed
-
-evalSimM :: Maybe Seed -> SimM a -> IO a
-evalSimM mSeed = fmap fst . runSimM mSeed
-
 example = bimap SimPip orbitalDistr
     <$> [("HAM", 250), ("BOT", 143), ("VER", 215), ("VET", 190), ("STR", 120)]
 

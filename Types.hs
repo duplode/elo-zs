@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE MultiParamTypeClasses, TypeFamilies #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 -- |
 -- Module: Types
 --
@@ -24,9 +25,12 @@ module Types (
     , fromAtRace
     , toAtRace
     , CoatRace(..)
+    -- * Simulation engine types
+    , SimOptions(..)
+    , SimM(..)
+    , runSimM
+    , evalSimM
     ) where
-
--- import Util.Lone
 
 import qualified Data.Text as T
 import qualified Data.Map.Strict as Map
@@ -35,6 +39,8 @@ import Data.Functor.Adjunction
 import Data.Functor.Rep
 import Data.Distributive
 import Data.Default.Class
+import System.Random.MWC
+import Control.Monad.State.Strict
 
 -- | Concrete identifier for the racers/players being ranked.
 type PipId = T.Text
@@ -190,4 +196,35 @@ instance Adjunction AtRace CoatRace where
     leftAdjunct uc = \a -> CoatRace $ \ri -> uc (AtRace ri a)
     rightAdjunct cr = \(AtRace ri a) -> let (CoatRace g) = cr a in g ri
 
+
+-- | Configuration options for simulation runs.
+data SimOptions = SimOptions
+    { simProbeRating :: Double -- ^ Rating of the probe that will be used
+                               -- as a reference in the strength
+                               -- calculations.
+    , simTarget :: Int         -- ^ Tally the top-n results attained by
+                               -- the probe.
+    , simRuns :: Int           -- ^ How many times each race should be
+                               -- simulated.
+    }
+    deriving (Eq, Show)
+
+instance Default SimOptions where
+    def = SimOptions
+        { simProbeRating = 1500
+        , simTarget = 5
+        , simRuns = 10000
+        }
+
+-- | A state monad for threading generator state in simulations.
+newtype SimM a = SimM { getSimM :: StateT Seed IO a }
+    deriving (Functor, Applicative, Monad, MonadState Seed, MonadIO)
+
+runSimM :: Maybe Seed -> SimM a -> IO (a, Seed)
+runSimM mSeed sim = do
+    seed <- maybe createSystemSeed return mSeed
+    runStateT (getSimM sim) seed
+
+evalSimM :: Maybe Seed -> SimM a -> IO a
+evalSimM mSeed = fmap fst . runSimM mSeed
 

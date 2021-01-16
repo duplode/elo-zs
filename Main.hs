@@ -1,7 +1,6 @@
 module Main where
 
 import Zak
-import Analysis.Simulation (SimOptions(..), SimM(..), runSimM)
 import Types
 import Tabular
 
@@ -12,7 +11,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 main :: IO ()
-main = ndcgSimMain
+main = perfMain
 
 simMain = do
     seed <- save =<< createSystemRandom
@@ -30,7 +29,7 @@ perfMain = do
 ndcgSimMain = do
     seed <- save =<< createSystemRandom
     let simOpts = def { simRuns = 1000 }
-        eopts = def { eloModulation = 12, eloRemoteCutoff = Nothing }
+        eopts = def -- { eloModulation = 12, eloRemoteCutoff = Nothing }
     (tab, newSeed) <- runSimM (Just seed) $ demoNdcgSim eopts simOpts
     demoToCsv "test.csv" tab
     T.writeFile "last-seed.txt" $ T.pack . show $
