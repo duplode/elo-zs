@@ -439,33 +439,42 @@ tidyRanks =
     . N.groupAllWith result
     . N.toList
 
-simExpectedPos
-    :: EloOptions
-    -> SimOptions
-    -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) [Double]
-simExpectedPos eopts simOpts =
-    LS.arrM (fmap postProcess . runSimsForRace) <<< LS.generalize basicScan
-    where
-    postProcess = Map.elems . extract
-    -- Is the distilling and filtering needed here?
-    isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
-    basicScan = extend (\(AtRace ri rtgs)
-            -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
-        . distillRatings eopts def {excludeProvisional=False}
-        <$> previousRatings eopts
-    runSimsForRace = codistributeL . fmap @AtRace (simAveragePositions simOpts)
-        <=< (\ar -> liftIO $ putStrLn ("Runs for race #" ++ show (raceIx ar))
-            >> return ar)
-
 -- | NDCG, but using expected positions from simulations rather than just
 -- the order of ratings.
 ndcgSim
     :: EloOptions
     -> SimOptions
     -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) Double
-ndcgSim eopts simOpts = simExpectedPos eopts simOpts &&& LS.generalize (arr actualRanks)
+ndcgSim eopts simOpts =
+    LS.generalize (previousRatings eopts &&& returnA)
+    >>> LS.generalize (arr (uncurry pickActives))
+    >>> LS.arrM (fmap Map.elems . runSimsForRace) *** LS.generalize (arr actualRanks)
     >>> LS.generalize (arr (uncurry computeNdcg))
     where
+
+    runSimsForRace = simAveragePositions simOpts
+
+    -- TODO: Deduplicate this.
+    -- Using the race results to only keep previous ratings for those who took
+    -- part in the current race.
+    pickActives rtgs entries =
+        let selector = Map.fromList
+                . map (\(Result p x) -> (p, x))
+                . N.toList
+                $ entries
+        in (activityMerger (extract rtgs) selector, entries)
+    -- Merges previous ratings and current entries, while extracting ratings
+    -- and makes sure no race entries are missing.
+    activityMerger = Map.merge
+        -- Drop those who didn't took part in the current race.
+        Map.dropMissing
+        -- Insert new racers with the default rating.
+        (Map.mapMissing (\_ _ -> decoyPipData))
+        -- Use existing ratings whenever they exist.
+        (Map.zipWithMatched (\_ pd _ -> pd))
+    -- Ideally we'd supply only the rating. Some of the signatures around here
+    -- should probably be changed.
+    decoyPipData = PipData 1500 0 0  -- TODO: Get the default rating from elsewhere.
     actualRanks = id
         . map result
         . sortBy (comparing pipsqueakTag)

@@ -227,4 +227,3 @@ runSimM mSeed sim = do
 
 evalSimM :: Maybe Seed -> SimM a -> IO a
 evalSimM mSeed = fmap fst . runSimM mSeed
-

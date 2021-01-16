@@ -7,7 +7,6 @@
 module Zak where
 
 import Analysis
-import Analysis.Simulation (SimOptions(..), SimM(..))
 import Engine
 import Types
 import Tidying
@@ -33,6 +32,8 @@ import qualified Data.List.NonEmpty as N
 import Data.List.NonEmpty (NonEmpty(..))
 import Control.Monad
 import Data.Maybe
+import System.Random.MWC
+import Control.Monad.State.Strict
 
 demoHighest :: EloOptions -> Tab.Table String String String
 demoHighest eopts = testData def
@@ -317,3 +318,22 @@ demoNdcgSim eopts simOpts = testData def
          ["NDCG"]
          (\(_, x) -> [show x])
     & return
+
+demoNdcgSimComparison :: SimOptions -> [(String, EloOptions)] -> SimM (Tab.Table String String String)
+demoNdcgSimComparison simOpts experiments =
+    traverse runExperiment eoptss
+    >>= \res -> res & transpose
+    & zip [1..]
+    & drop 1  -- TODO: Figure out how to get useful results for the first race.
+    & arrangeTable
+         (fmap (show . fst))
+         titles
+         (\(_, xs) -> map show xs)
+    & return
+    where
+    (titles, eoptss) = N.unzip experiments
+    runExperiment eopts = do
+        seed <- get
+        res <- LS.scanM (ndcgSim eopts simOpts) (testData def)
+        liftIO $ restore seed
+        return res
