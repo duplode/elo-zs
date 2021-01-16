@@ -21,6 +21,7 @@ Scratchpad2.hs
 test.csv
 last-seed.txt
 test2.csv
+*.csv
 .~*
 
 *.rpl

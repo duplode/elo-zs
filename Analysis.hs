@@ -10,6 +10,7 @@ import Analysis.PerfModel
 import Analysis.Simulation
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Map.Merge.Strict as Map
 import Data.Ord
 import qualified Control.Foldl as L
 import qualified Control.Scanl as LS
@@ -391,7 +392,7 @@ ndcg eopts = previousRatings eopts &&& returnA
         . map snd
         . sortBy (comparing fst)
         . zipWith (\n (p, _) -> (p, n)) [1..]
-        . sortBy (comparing (Down . rating . snd))
+        . sortBy (comparing (Down . snd))
         . Map.assocs
     -- Using the race results to only keep previous ratings for those who took
     -- part in the current race.
@@ -400,7 +401,16 @@ ndcg eopts = previousRatings eopts &&& returnA
                 . map (\(Result p x) -> (p, x))
                 . N.toList
                 $ entries
-        in (Map.intersectionWith const (extract rtgs) selector, entries)
+        in (activityMerger (extract rtgs) selector, entries)
+    -- Merges previous ratings and current entries, while extracting ratings
+    -- and makes sure no race entries are missing.
+    activityMerger = Map.merge
+        -- Drop those who didn't took part in the current race.
+        Map.dropMissing
+        -- Insert new racers with the default rating.
+        (Map.mapMissing (\_ _ -> 1500))  -- TODO: Get the default rating from somewhere.
+        -- Use existing ratings whenever they exist.
+        (Map.zipWithMatched (\_ pd _ -> rating pd))
     actualRanks = id
         . map result
         . sortBy (comparing pipsqueakTag)
