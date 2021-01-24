@@ -13,6 +13,7 @@ module Engine
     , allRatings
     , previousRatings
     , isProvisional
+    , initialRating
     ) where
 
 import Types
@@ -28,9 +29,11 @@ import qualified Control.Foldl as L
 import qualified Control.Scanl as LS
 import Data.List
 
--- | Initial rating for new players.
-defRating :: Double
-defRating = 1500
+-- | Initial rating for new players. Defined as a constant here for
+-- expediteness, taking into account that making it configurable isn't as
+-- essential as it is making other engine parameters configurable.
+initialRating :: Double
+initialRating = 1500
 
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
@@ -180,7 +183,7 @@ toDelta :: Ord p
 toDelta eopts rtgs xy =
     let px = Map.lookup (player xy) rtgs
         py = Map.lookup (opponent xy) rtgs
-        gap = maybe defRating rating px - maybe defRating rating py
+        gap = maybe initialRating rating px - maybe initialRating rating py
         (kx, ky)
             | provisionalCheck px && not (provisionalCheck py)
                 = (kHi, kLo)
@@ -211,7 +214,7 @@ applyChange ri' rtgs (p, d) = Map.alter upsertPip p rtgs
     where
     upsertPip :: Maybe PipData -> Maybe PipData
     upsertPip =  Just . \case
-        Nothing -> PipData (defRating + d) 0 ri'
+        Nothing -> PipData (initialRating + d) 0 ri'
         Just (PipData rtg n _) -> PipData (rtg + d) n ri'
 
 -- | Updates the event count for players who took part in the current

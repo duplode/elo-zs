@@ -40,6 +40,7 @@ module Analysis.PerfModel.Reference.Naive
     ) where
 
 import Analysis.PerfModel.Orbital
+import Engine (initialRating)
 
 import qualified Numeric.Integration.TanhSinh as Integration
 
@@ -62,7 +63,7 @@ perfModelStrength :: [Double] -> Double
 perfModelStrength rs = 1 / integ
     where
     integ = Integration.result . Integration.absolute 1e-6 $
-        Integration.nonNegative Integration.trap (raceWinPDF rs 1500)
+        Integration.nonNegative Integration.trap (raceWinPDF rs initialRating)
 
 -- | From a list prefix of n elements, generates all combinations of k
 -- elements, paired with the remaining n - k elements.
@@ -115,7 +116,7 @@ perfModelTopStrength :: Int -> [Double] -> Double
 perfModelTopStrength pos rs = 1 / integ
     where
     integ = Integration.result . Integration.absolute 1e-6 $
-        Integration.nonNegative Integration.trap (topPDF pos rs 1500)
+        Integration.nonNegative Integration.trap (topPDF pos rs initialRating)
 
 example :: [Double]
 example = [2200,2100,1900,1870,1850]

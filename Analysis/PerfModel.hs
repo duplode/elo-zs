@@ -39,6 +39,7 @@ module Analysis.PerfModel
     ) where
 
 import Analysis.PerfModel.Orbital
+import Engine (initialRating)
 import qualified Analysis.PerfModel.Reference.Precompute as R
 import qualified Util.Combinations as Util
 
@@ -65,7 +66,7 @@ perfModelStrength :: [Double] -> Double
 perfModelStrength rs = 1 / integ
     where
     integ = Integration.result . Integration.absolute 1e-6 $
-        Integration.nonNegative Integration.trap (raceWinPDF rs 1500)
+        Integration.nonNegative Integration.trap (raceWinPDF rs initialRating)
 
 -- TODO: positionPDF and positionPDFPre are still the same as in
 -- Analysis.PerfModel.Reference.Precompute . Conside redefining them so that
@@ -125,7 +126,7 @@ perfModelTopStrength :: Int -> [Double] -> Double
 perfModelTopStrength pos rs = 1 / integ
     where
     integ = Integration.result . Integration.absolute 1e-6 $
-        Integration.nonNegative Integration.trap (topPDF pos rs 1500)
+        Integration.nonNegative Integration.trap (topPDF pos rs initialRating)
 
 
 example :: [Double]

@@ -408,7 +408,7 @@ ndcg eopts = previousRatings eopts &&& returnA
         -- Drop those who didn't took part in the current race.
         Map.dropMissing
         -- Insert new racers with the default rating.
-        (Map.mapMissing (\_ _ -> 1500))  -- TODO: Get the default rating from somewhere.
+        (Map.mapMissing (\_ _ -> initialRating))
         -- Use existing ratings whenever they exist.
         (Map.zipWithMatched (\_ pd _ -> rating pd))
     actualRanks = id
@@ -457,6 +457,9 @@ ndcgSim eopts simOpts =
     -- TODO: Deduplicate this.
     -- Using the race results to only keep previous ratings for those who took
     -- part in the current race.
+    --
+    -- This is a convenient place to limit accounted for race entries to a
+    -- top-N.
     pickActives rtgs entries =
         let selector = Map.fromList
                 . map (\(Result p x) -> (p, x))
@@ -465,6 +468,9 @@ ndcgSim eopts simOpts =
         in (activityMerger (extract rtgs) selector, entries)
     -- Merges previous ratings and current entries, while extracting ratings
     -- and makes sure no race entries are missing.
+    --
+    -- This is a convenient place to limit accounted for racers to a rating
+    -- floor.
     activityMerger = Map.merge
         -- Drop those who didn't took part in the current race.
         Map.dropMissing
@@ -474,7 +480,7 @@ ndcgSim eopts simOpts =
         (Map.zipWithMatched (\_ pd _ -> pd))
     -- Ideally we'd supply only the rating. Some of the signatures around here
     -- should probably be changed.
-    decoyPipData = PipData 1500 0 0  -- TODO: Get the default rating from elsewhere.
+    decoyPipData = PipData initialRating 0 0
     actualRanks = id
         . map result
         . sortBy (comparing pipsqueakTag)

@@ -211,7 +211,7 @@ data SimOptions = SimOptions
 
 instance Default SimOptions where
     def = SimOptions
-        { simProbeRating = 1500
+        { simProbeRating = 1500  -- TODO: Should this be Engine.initialRating?
         , simTarget = 5
         , simRuns = 10000
         }
