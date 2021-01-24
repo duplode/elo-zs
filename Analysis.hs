@@ -411,9 +411,9 @@ ndcg eopts = previousRatings eopts &&& returnA
         (Map.mapMissing (\_ _ -> initialRating))
         -- Use existing ratings whenever they exist.
         (Map.zipWithMatched (\_ pd _ -> rating pd))
-    actualRanks = id
-        . map result
+    actualRanks = map result
         . sortBy (comparing pipsqueakTag)
+        . N.toList
         . tidyRanks
     computeNdcg exs acs = L.fold ndcgFold (zipWith ndcgParcel exs acs)
     ndcgParcel ex ac = SP (log 2 / log (ac + 1)) (1 / (1 + abs (ac - ex)))
@@ -424,20 +424,6 @@ ndcg eopts = previousRatings eopts &&& returnA
         (\(SP idcg acc) -> acc / idcg)
 
 data SP a b = SP !a !b
-
-tidyRanks :: N.NonEmpty (Result PipId Int) -> [Result PipId Double]
-tidyRanks =
-    -- sortBy (comparing pipsqueakTag)
-    concatMap (\(n, g) -> fmap @(Result _) (n+) <$> g)
-    -- Accumulates the base positions by counting elements from the previous
-    -- groups.
-    . scanl1 (\(n, g) (_, g') -> (n + fromIntegral (length g), g'))
-    . zip [1..]
-    -- Replaces the reported result with a draw adjustment.
-    . map (\g ->
-        fmap @(Result _) (const (fromIntegral (length g - 1) / 2)) <$> N.toList g)
-    . N.groupAllWith result
-    . N.toList
 
 -- | NDCG, but using expected positions from simulations rather than just
 -- the order of ratings.
@@ -481,9 +467,9 @@ ndcgSim eopts simOpts =
     -- Ideally we'd supply only the rating. Some of the signatures around here
     -- should probably be changed.
     decoyPipData = PipData initialRating 0 0
-    actualRanks = id
-        . map result
+    actualRanks = map result
         . sortBy (comparing pipsqueakTag)
+        . N.toList
         . tidyRanks
     computeNdcg exs acs = L.fold ndcgFold (zipWith ndcgParcel exs acs)
     ndcgParcel ex ac = SP (log 2 / log (ac + 1)) (1 / (1 + abs (ac - ex)))
