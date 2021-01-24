@@ -32,7 +32,7 @@ perfMain = do
 ndcgSimMain = do
     seed <- save =<< createSystemRandom
     let simOpts = def { simRuns = 1000 }
-        eopts = def -- { eloModulation = 12, eloRemoteCutoff = Nothing }
+        eopts = def
         -- eopts = eoptsDirect
     (tab, newSeed) <- runSimM (Just seed) $ demoNdcgSim eopts simOpts
     demoToCsv "test.csv" tab

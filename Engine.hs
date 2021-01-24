@@ -46,23 +46,30 @@ wdlScore = \case
 --
 -- When it comes to determine the match outcome, lower is better, as befits
 -- standings on a race scoreboard.
-faceOff :: Ord a => Result p a -> Result p a -> FaceOff p
-faceOff x y = FaceOff
+faceOff :: Ord a
+    => (a -> a -> Double)  -- ^ Function to compute the remoteness score.
+    -> Result p a
+    -> Result p a
+    -> FaceOff p
+faceOff fRemote x y = FaceOff
     { player = pipsqueakTag x
     , opponent = pipsqueakTag y
     , outcome = case comparing result x y of
         LT -> Win
         EQ -> Draw
         GT -> Loss
+    , remoteness = fRemote (result x) (result y)
     }
 
 -- | Given race results for multiple racers, generate all one-on-one matches
 -- between them. Each combination of two players generates one match.
-toFaceOffs :: Ord a => EloOptions -> NE.NonEmpty (Result p a) -> [FaceOff p]
-toFaceOffs eopts xs = concat . transpose
-    . maybe id (map . take) (eloRemoteCutoff eopts)
+toFaceOffs :: Ord a
+    => (a -> a -> Double)  -- ^ Function to compute the remoteness score.
+    -> NE.NonEmpty (Result p a)
+    -> [FaceOff p]
+toFaceOffs fRemote xs = concat . transpose
     . NE.toList
-    $ xs =>> \(y :| ys) -> faceOff y <$> ys
+    $ xs =>> \(y :| ys) -> faceOff fRemote y <$> ys
 -- The match matrix is transposed before concatenation so that, if we choose
 -- not to batch matches per race, matches between neighbours on the scoreboard
 -- are handled first when the matches are used to calculate the rating deltas.
@@ -148,10 +155,11 @@ finalRatings
     => EloOptions
     -> L.Fold (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
 finalRatings eopts = L.Fold
-    (\ar xs -> update ar (toFaceOffs eopts xs))
+    (\ar xs -> update ar (toFaceOffs fRemote xs))
     (AtRace 0 Map.empty)
     id
     where
+    fRemote x y = fromIntegral (abs (x - y))
     update = case eloBatchingStrategy eopts of
         Batching -> updateRatingsSimple eopts
         NoBatching -> updateRatingsNoBatching eopts
@@ -190,7 +198,11 @@ toDelta eopts rtgs xy =
             | not (provisionalCheck px) && provisionalCheck py
                 = (kLo, kHi)
             | otherwise = (kBase, kBase)
-        baseDelta = scoreDiscrepancy gap (outcome xy)
+        -- Remoteness weight.
+        w = maybe 1
+            (\n -> witch (n/pi) (1/2) 0 (remoteness xy))
+            (eloRemotenessModulation eopts)
+        baseDelta = w * scoreDiscrepancy gap (outcome xy)
     in ((player xy, kx * baseDelta), (opponent xy, -ky * baseDelta))
     where
     -- Provisional rating test, defaulting to True for new entrants. Note
@@ -204,6 +216,16 @@ toDelta eopts rtgs xy =
     kHi = kBase * eloProvisionalFactor eopts
     kLo = kBase / eloProvisionalFactor eopts
 
+-- | Scaled witch of Agnesi.
+witch
+    :: Double  -- ^ x-scaling, as a specific distance from the center.
+    -> Double  -- ^ Relative steepness (y-ratio at x-scaling from the peak).
+    -> Double  -- ^ Peak location, center of the curve.
+    -> Double  -- ^ x value.
+    -> Double
+witch d s c x = 1 / (b * (x - c)^2 + 1)
+    where
+    b = (1 - s) / (s * d^2)
 
 -- | Applies a rating change to the collection of ratings.
 --

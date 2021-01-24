@@ -80,9 +80,18 @@ data WDL = Loss | Draw | Win
 
 -- | Record of a match between two players.
 data FaceOff p = FaceOff
-    { player :: !p     -- ^ A player.
-    , opponent :: !p   -- ^ Their opponent.
-    , outcome :: !WDL  -- ^ The outcome, from the 'player''s point of view.
+    { player :: !p           -- ^ A player.
+    , opponent :: !p         -- ^ Their opponent.
+    , outcome :: !WDL        -- ^ The outcome, from the 'player''s point of
+                             -- view.
+    , remoteness :: !Double  -- ^ The magnitude of the difference betwen the
+                             -- performance of the players in the match,
+                             -- measured in some convenient form. It can be
+                             -- used to give extra weight to matches between
+                             -- racers close to each other in a scoreboard
+                             -- or, in the opposite direction, to give extra
+                             -- weight for matches with larger performance
+                             -- differences.
     }
     deriving (Eq, Ord, Show)
 
@@ -116,14 +125,17 @@ data EloOptions = EloOptions
         -- provisional after the fifth event, while 0 disables provisional
         -- ratings.
     , eloProvisionalGraduation :: Int
-        -- | How many positions above and below each racer on the scoreboard
-        -- should be used to arrange matches. If 'Nothing', use all possible
-        -- matches.
+        -- | How much weight should be given to matches between players far
+        -- removed from each other in the event results. The supplied value,
+        -- if any, amounts to the sum of all weights in the limit of an
+        -- infinitely large field of players, so larger values mean less
+        -- dampening of remote matches. 'Nothing' disables the weighing, so
+        -- that all matches are counted equally.
         --
-        -- This cutoff for remote matches helps keeping outlier results and
+        -- This dampening for remote matches helps keeping outlier results and
         -- racer number variations from having an exaggerated effect on the
         -- rankings.
-    , eloRemoteCutoff :: Maybe Int
+    , eloRemotenessModulation :: Maybe Double
         -- | Whether to batch rating updates.
     , eloBatchingStrategy :: BatchingStrategy
     }
@@ -134,7 +146,7 @@ instance Default EloOptions where
         { eloModulation = 24
         , eloProvisionalFactor = 2
         , eloProvisionalGraduation = 5
-        , eloRemoteCutoff = Just 6
+        , eloRemotenessModulation = Just 22
         , eloBatchingStrategy = Batching
         }
 
