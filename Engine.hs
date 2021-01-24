@@ -125,19 +125,19 @@ updateRatings eopts (AtRace ri rtgs) =
 finalRatings
     :: Ord p
     => EloOptions
-    -> L.Fold (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
+    -> L.Fold (NE.NonEmpty (Result p Rank')) (AtRace (Map p PipData))
 finalRatings eopts = L.Fold
     (\ar xs -> updateRatings eopts ar (toFaceOffs fRemote xs))
     (AtRace 0 Map.empty)
     id
     where
-    fRemote x y = fromIntegral (abs (x - y))
+    fRemote x y = abs (x - y)
 
 -- | Calculates ratings for all players after each event.
 allRatings
     :: Ord p
     => EloOptions
-    -> LS.Scan (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
+    -> LS.Scan (NE.NonEmpty (Result p Rank')) (AtRace (Map p PipData))
 allRatings eopts = LS.postscan (finalRatings eopts)
 
 -- | Calculates ratings for all players before each event. Typically used for
@@ -145,7 +145,7 @@ allRatings eopts = LS.postscan (finalRatings eopts)
 previousRatings
     :: Ord p
     => EloOptions
-    -> LS.Scan (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
+    -> LS.Scan (NE.NonEmpty (Result p Rank')) (AtRace (Map p PipData))
 previousRatings eopts = LS.prescan (finalRatings eopts)
 
 

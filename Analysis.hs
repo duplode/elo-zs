@@ -157,18 +157,15 @@ distillRatings eopts ppopts = extend $
 simpleWeighedScores
     :: EloOptions
     -> LS.Scan
-        (N.NonEmpty (Result PipId Int))
-        (AtRace (N.NonEmpty (Result PipId Double)))
+        (N.NonEmpty (Result PipId Rank'))
+        (AtRace (N.NonEmpty (Result PipId Rank')))
 simpleWeighedScores eopts
     = (\str rs -> AtRace (raceIx str)
         $ fmap @(Result _) (extract str *) <$> rs)
             <$> strength <*> basePoints
     where
     basePoints = arr computeScores
-    computeScores = join
-        . fmap (\gp -> fmap @(Result _) (computeScore (length gp)) <$> gp)
-        . N.groupAllWith1 result
-    computeScore = exponentialScoring
+    computeScores = fmap (fmap @(Result _) exponentialScoring)
     strength = fmap @AtRace strengthConversion
         . accumulatedRatings
         . distillRatings eopts def {excludeProvisional=False}
@@ -186,12 +183,11 @@ logisticStrengthConversion s = tanh ((log 3 / 15000) * s / 2)
 linearStrengthConversion s = s / 45000
 
 -- | Scoring on an exponential curve: 24 points for the winner, 2 for the
--- 12th place, averaging points over drawn racers.
-exponentialScoring :: Int -> Int -> Double
-exponentialScoring nDrawn rank
-    = (24 *) . exp
-        $ -(log 12 / 11)
-            * (fromIntegral rank + fromIntegral (nDrawn - 1)/2 - 1)
+-- 12th place. The ranks should already have had draw corrections applied to
+-- them.
+exponentialScoring :: Rank' -> Double
+exponentialScoring rank
+    = 24 * exp (-(log 12 / 11) * (rank - 1))
 -- log 12 / 11 = 0.22590060452618185 ~ log (25 / 20)
 -- log (25 / 18) = 0.32850406697203605
 -- log (10 / 6) = 0.5108256237659907
@@ -202,7 +198,7 @@ exponentialScoring nDrawn rank
 -- weighing function.
 weighedStrength
     :: EloOptions
-    -> LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+    -> LS.Scan (N.NonEmpty (Result PipId Rank')) (AtRace Rank')
 weighedStrength eopts = id  -- fmap @AtRace strengthConversion
     . accumulatedRatings
     . distillRatings eopts def {excludeProvisional=False}
@@ -227,7 +223,7 @@ weighedStrength eopts = id  -- fmap @AtRace strengthConversion
 weighedScores
     :: EloOptions
     -> LS.Scan
-        (N.NonEmpty (Result PipId Int))
+        (N.NonEmpty (Result PipId Rank'))
         (AtRace (N.NonEmpty (Result PipId Double)))
 weighedScores eopts
     = (\str rs -> AtRace (raceIx str)
@@ -235,10 +231,7 @@ weighedScores eopts
             <$> weighedStrength eopts <*> basePoints
     where
     basePoints = arr computeScores
-    computeScores = join
-        . fmap (\gp -> fmap @(Result _) (computeScore (length gp)) <$> gp)
-        . N.groupAllWith1 result
-    computeScore = exponentialScoring
+    computeScores = fmap (fmap @(Result _) exponentialScoring)
 
 
 -- | Scaled Gaussian.
@@ -265,23 +258,23 @@ witch d s c x = 1 / (b * (x - c)^2 + 1)
 
 -- | Midfield weighing through a gaussian centered at 6th place.
 fixedMidfieldWeight
-    :: Int  -- ^ Race standing.
+    :: Rank'  -- ^ Race standing.
     -> Double
-fixedMidfieldWeight x = gaussian 5 (2/5) 6 (fromIntegral x)
+fixedMidfieldWeight x = gaussian 5 (2/5) 6 x
 
 -- | Midfield weighing through a witch of Agnesi centered at 6th place.
 altFixedMidfieldWeight
-    :: Int  -- ^ Race standing.
+    :: Rank'  -- ^ Race standing.
     -> Double
-altFixedMidfieldWeight x = witch 6 (1/2) 6 (fromIntegral x)
+altFixedMidfieldWeight x = witch 6 (1/2) 6 x
 
 -- | Midfield weighing through a gaussian centered at two fifths of the
 -- scoreboard size. Not a particularly effective weighing curve.
 variableMidfieldWeight
-    :: Int  -- ^ Number of racers.
-    -> Int  -- ^ Race standing.
+    :: Int    -- ^ Number of racers.
+    -> Rank'  -- ^ Race standing.
     -> Double
-variableMidfieldWeight n x = gaussian (peak - 1) (2/5) peak (fromIntegral x)
+variableMidfieldWeight n x = gaussian (peak - 1) (2/5) peak x
     where
     peak = (2 / 5) * fromIntegral n
 
@@ -293,7 +286,7 @@ variableMidfieldWeight n x = gaussian (peak - 1) (2/5) peak (fromIntegral x)
 -- obtained through 'reinvertedRatings'.
 reinvertedStrength
     :: EloOptions
-    -> LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+    -> LS.Scan (N.NonEmpty (Result PipId Rank')) (AtRace Double)
 reinvertedStrength eopts = id  -- fmap @AtRace strengthConversion
     . fmap (logBase 10)
     . reinvertedRatings
@@ -317,7 +310,7 @@ reinvertedRatings
 -- top racers being able to largely determine the result.
 perfStrength
     :: EloOptions
-    -> LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+    -> LS.Scan (N.NonEmpty (Result PipId Rank')) (AtRace Double)
 perfStrength eopts = id
     . fmap @AtRace (perfModelStrength . map rating . Map.elems)
     . extend (\(AtRace ri rtgs)
@@ -329,7 +322,7 @@ perfStrength eopts = id
 
 perfTopStrength
     :: EloOptions
-    -> LS.Scan (N.NonEmpty (Result PipId Int)) (AtRace Double)
+    -> LS.Scan (N.NonEmpty (Result PipId Rank')) (AtRace Double)
 perfTopStrength eopts = id
     . fmap @AtRace (perfModelTopStrength 5 . map rating . Map.elems)
     . extend (\(AtRace ri rtgs)
@@ -342,7 +335,7 @@ perfTopStrength eopts = id
 perfTopStrength'
     :: EloOptions
     -> Int  -- ^ Which top-N probability to use.
-    -> LS.ScanM IO (N.NonEmpty (Result PipId Int)) (AtRace Double)
+    -> LS.ScanM IO (N.NonEmpty (Result PipId Rank')) (AtRace Double)
 perfTopStrength' eopts pos = LS.arrM integrateRaces <<< LS.generalize basicScan
     where
     basicScan = extend (\(AtRace ri rtgs)
@@ -364,7 +357,7 @@ perfTopStrength' eopts pos = LS.arrM integrateRaces <<< LS.generalize basicScan
 simStrength
     :: EloOptions
     -> SimOptions
-    -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) (AtRace Double)
+    -> LS.ScanM SimM (N.NonEmpty (Result PipId Rank')) (AtRace Double)
 simStrength eopts simOpts =
     LS.arrM runSimsForRace <<< LS.generalize basicScan
     where
@@ -381,7 +374,7 @@ simStrength eopts simOpts =
 -- evaluation metric along the lines of Dehpanah et al.,
 -- [/The Evaluation of Rating Systems in Online Free-for-All Games/](https://arxiv.org/abs/2008.06787v1)
 -- (2020). See also https://en.wikipedia.org/wiki/Discounted_cumulative_gain .
-ndcg :: EloOptions -> LS.Scan (N.NonEmpty (Result PipId Int)) Double
+ndcg :: EloOptions -> LS.Scan (N.NonEmpty (Result PipId Rank')) Double
 ndcg eopts = previousRatings eopts &&& returnA
     >>> arr (uncurry pickActives)
     >>> arr (expectedRanks *** actualRanks)
@@ -414,7 +407,6 @@ ndcg eopts = previousRatings eopts &&& returnA
     actualRanks = map result
         . sortBy (comparing pipsqueakTag)
         . N.toList
-        . tidyRanks
     computeNdcg exs acs = L.fold ndcgFold (zipWith ndcgParcel exs acs)
     ndcgParcel ex ac = SP (log 2 / log (ac + 1)) (1 / (1 + abs (ac - ex)))
     ndcgFold = L.Fold
@@ -430,7 +422,7 @@ data SP a b = SP !a !b
 ndcgSim
     :: EloOptions
     -> SimOptions
-    -> LS.ScanM SimM (N.NonEmpty (Result PipId Int)) Double
+    -> LS.ScanM SimM (N.NonEmpty (Result PipId Rank')) Double
 ndcgSim eopts simOpts =
     LS.generalize (previousRatings eopts &&& returnA)
     >>> LS.generalize (arr (uncurry pickActives))
@@ -470,7 +462,6 @@ ndcgSim eopts simOpts =
     actualRanks = map result
         . sortBy (comparing pipsqueakTag)
         . N.toList
-        . tidyRanks
     computeNdcg exs acs = L.fold ndcgFold (zipWith ndcgParcel exs acs)
     ndcgParcel ex ac = SP (log 2 / log (ac + 1)) (1 / (1 + abs (ac - ex)))
     ndcgFold = L.Fold

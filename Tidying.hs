@@ -33,13 +33,13 @@ instance Default DataPreparationOptions where
 -- \"Ghost\" is Stunts community jargon for an additional entry by one person
 -- in a single race, which is the most common reason for a result being
 -- excluded from the race scoreboard.
-ghostbuster :: [PipId] -> [Standing] -> [Standing]
+ghostbuster :: [PipId] -> [Result PipId a] -> [Result PipId a]
 ghostbuster ghosts = filter ((`notElem` ghosts) . pipsqueakTag)
 
 -- | Tidies rank results of events by sorting the entries, ensuring there are
 -- no gaps in the ranks, and adjusting draw ranks so they are equidistant
 -- from the surrounding non-draw ranks.
-tidyRanks :: N.NonEmpty (Result PipId Int) -> N.NonEmpty (Result PipId Double)
+tidyRanks :: N.NonEmpty (Result PipId Int) -> N.NonEmpty (Result PipId Rank')
 tidyRanks =
     -- Adds the base position to the draw adjustments, and concatenates the
     -- groups.

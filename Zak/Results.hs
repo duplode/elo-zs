@@ -15,16 +15,19 @@ import Data.Bool
 
 -- | Preliminary result list for a race, subject to preprocessing.
 data ScratchResults
-    = NoDraws [PipId]       -- ^ If there were no draws, the results of each
-                            -- racer can be left implied by their order.
-    | WithDraws [Standing]  -- ^ If there were draws, explicitly specifying
-                            -- the results of each racer is necessary.
+    = NoDraws [PipId]               -- ^ If there were no draws, the results
+                                    -- of each racer can be left implied by
+                                    -- their order.
+    | WithDraws [Result PipId Int]  -- ^ If there were draws, explicitly
+                                    -- specifying the results of each racer
+                                    -- is necessary.
 
 -- | Preprocessed sample data, ready for consumption.
 testData :: DataPreparationOptions -> [NE.NonEmpty Standing]
 testData opts = processRaceResults <$> crudeData
     where
-    processRaceResults = NE.fromList
+    processRaceResults = tidyRanks
+        . NE.fromList
         . bool id (ghostbuster ghostList) (removeGhosts opts)
         . mkResults
     mkResults = \case
@@ -84,8 +87,8 @@ ghostList =
     , "oh yeah"
     , "Xianthi"
 
-    , "Vector" 
-    , "Chicago Striker" 
+    , "Vector"
+    , "Chicago Striker"
     , "Short Cutfinder"
 
     , "Bernie Rubber"

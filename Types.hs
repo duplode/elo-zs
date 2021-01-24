@@ -13,6 +13,7 @@ module Types (
     , PipData(..)
     , Ratings
     , Result(..)
+    , Rank'
     , Standing
     , WDL(..)
     , FaceOff(..)
@@ -70,8 +71,14 @@ data Result p a = Result
     }
     deriving (Eq, Ord, Show, Functor)
 
+-- | Race rank. Not an integer because draw ranks are adjusted to be
+-- equidistant from the surrounding ranks.
+type Rank' = Double
+-- TODO: It might be a good idea to use a newtype to prevent directly doing
+-- arithmetic with this type.
+
 -- | Concrete race result.
-type Standing = Result PipId Int
+type Standing = Result PipId Rank'
 
 -- | Possible outcomes of a match between two players.
 data WDL = Loss | Draw | Win

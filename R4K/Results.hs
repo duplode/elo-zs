@@ -9,6 +9,7 @@ module R4K.Results
     ) where
 
 import Types
+import Tidying
 
 import Data.Ini
 
@@ -27,7 +28,8 @@ import Control.Monad
 
 -- | Preprocessed sample data, ready for consumption.
 testData :: IO [NE.NonEmpty Standing]
-testData = (traverse (parseScoreboard . (</> "thisrace.sb")) =<< raceDirs)
+testData = (traverse
+        (fmap tidyRanks . parseScoreboard . (</> "thisrace.sb")) =<< raceDirs)
     -- <&> (++ extraRaces)
     where
     baseDir = "R4K" </> "data"
@@ -35,7 +37,7 @@ testData = (traverse (parseScoreboard . (</> "thisrace.sb")) =<< raceDirs)
         dirs <- map (baseDir </>) <$> listDirectory baseDir
         List.sort <$> filterM doesDirectoryExist dirs
 
-parseScoreboard :: String -> IO (NE.NonEmpty Standing)
+parseScoreboard :: String -> IO (NE.NonEmpty (Result PipId Int))
 parseScoreboard path = do
     eIni <- readIniFile path
     case eIni of
@@ -65,7 +67,7 @@ parseScoreboard path = do
             | otherwise  = (Result pip (result prevRes + 1), lap)
 
     {-
-extraRaces :: [NE.NonEmpty Standing]
+extraRaces :: [NE.NonEmpty (Result PipId Int)]
 extraRaces = NE.fromList <$> [r202005, r202006]
 
 r202005 =
