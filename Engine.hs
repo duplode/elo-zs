@@ -67,14 +67,11 @@ toFaceOffs :: Ord a
     => (a -> a -> Double)  -- ^ Function to compute the remoteness score.
     -> NE.NonEmpty (Result p a)
     -> [FaceOff p]
-toFaceOffs fRemote xs = concat . transpose
-    . NE.toList
+toFaceOffs fRemote xs = concat . NE.toList
     $ xs =>> \(y :| ys) -> faceOff fRemote y <$> ys
--- The match matrix is transposed before concatenation so that, if we choose
--- not to batch matches per race, matches between neighbours on the scoreboard
--- are handled first when the matches are used to calculate the rating deltas.
--- Rating updates are not commutative. In particular, it appears that handling
--- neighbours first helps to tame rating spikes from atypical results.
+-- Note that rating updates are not commutative. That doesn't matter here, as
+-- each list of faceoffs will be processed (in updateRatings) using the same
+-- set of ratings, but it might in other circumsntances.
 
 -- | Difference between expected and actual scores for a match. Positive if
 -- the score was higher than what was expected.
@@ -99,15 +96,14 @@ isProvisional :: EloOptions -> PipData -> Bool
 isProvisional eopts rtg = entries rtg < eloProvisionalGraduation eopts
 
 
--- | The original version of core rating update engine, which only updates
--- ratings after computing all deltas.
-updateRatingsSimple
+-- | The core rating update engine.
+updateRatings
     :: forall p. Ord p
     => EloOptions
     -> AtRace (Map p PipData)  -- ^ Ratings at the previous race.
     -> [FaceOff p]             -- ^ Matches of the current event.
     -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
-updateRatingsSimple eopts (AtRace ri rtgs) =
+updateRatings eopts (AtRace ri rtgs) =
     AtRace ri' . updateCount ri' . L.fold applyCurrentChanges . toDeltas
     -- The index used to be computed with a seq here. That is unnecessary now
     -- that the corresponding AtRace field is strict.
@@ -125,44 +121,17 @@ updateRatingsSimple eopts (AtRace ri rtgs) =
     applyCurrentChanges :: L.Fold (p, Double) (Map p PipData)
     applyCurrentChanges = L.Fold (applyChange ri') rtgs id
 
--- | The non-batching version of the core rating update engine.
-updateRatingsNoBatching
-    :: forall p. Ord p
-    => EloOptions
-    -> AtRace (Map p PipData)  -- ^ Ratings at the previous race.
-    -> [FaceOff p]             -- ^ Matches of the current event.
-    -> AtRace (Map p PipData)  -- ^ Updated ratings at the current race.
-updateRatingsNoBatching eopts (AtRace ri rtgs) =
-    AtRace ri' . updateCount ri' . L.fold applyCurrentChanges
-    -- The index used to be computed with a seq here. That is unnecessary now
-    -- that the corresponding AtRace field is strict.
-    where
-    -- | Index of the current event.
-    ri' = ri + 1
-
-    -- | Applies all changes for the current race.
-    applyCurrentChanges :: L.Fold (FaceOff p) (Map p PipData)
-    applyCurrentChanges = L.Fold applyBothChanges rtgs id
-        where
-        applyBothChanges rtgs xy =
-            let (dx, dy) = toDelta eopts rtgs xy
-            in flip (applyChange ri') dy (flip (applyChange ri') dx rtgs)
-
-
 -- | Calculates ratings for all players after the final event.
 finalRatings
     :: Ord p
     => EloOptions
     -> L.Fold (NE.NonEmpty (Result p Int)) (AtRace (Map p PipData))
 finalRatings eopts = L.Fold
-    (\ar xs -> update ar (toFaceOffs fRemote xs))
+    (\ar xs -> updateRatings eopts ar (toFaceOffs fRemote xs))
     (AtRace 0 Map.empty)
     id
     where
     fRemote x y = fromIntegral (abs (x - y))
-    update = case eloBatchingStrategy eopts of
-        Batching -> updateRatingsSimple eopts
-        NoBatching -> updateRatingsNoBatching eopts
 
 -- | Calculates ratings for all players after each event.
 allRatings
@@ -247,4 +216,3 @@ applyChange ri' rtgs (p, d) = Map.alter upsertPip p rtgs
 updateCount :: Ord p => RaceIx -> Map p PipData -> Map p PipData
 updateCount ri' = fmap (\(PipData rtg n i) ->
     PipData rtg (bool id (+ 1) (i == ri') n) i)
-

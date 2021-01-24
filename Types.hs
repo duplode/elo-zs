@@ -18,7 +18,6 @@ module Types (
     , FaceOff(..)
     , FaceOff'
     , EloOptions(..)
-    , BatchingStrategy(..)
     -- * Race index tagging
     , AtRace(..)
     , raceIx
@@ -136,8 +135,6 @@ data EloOptions = EloOptions
         -- racer number variations from having an exaggerated effect on the
         -- rankings.
     , eloRemotenessModulation :: Maybe Double
-        -- | Whether to batch rating updates.
-    , eloBatchingStrategy :: BatchingStrategy
     }
     deriving (Eq, Show)
 
@@ -147,19 +144,7 @@ instance Default EloOptions where
         , eloProvisionalFactor = 2
         , eloProvisionalGraduation = 5
         , eloRemotenessModulation = Just 22
-        , eloBatchingStrategy = Batching
         }
-
--- | A flag for specifying whether, in the Elo engine, to batch rating updates
--- for a race (that is, to use the ratings before the race for all matches) or
--- not (that is, to update ratings on the fly after each match is processed).
---
--- Batching is arguably the more orthodox way of processing matches. Turning
--- off batching tends to slow down rating swings to some extent, as if
--- compensating for the correlation between results of matches involving the
--- same racer in a race.
-data BatchingStrategy = Batching | NoBatching
-    deriving (Eq, Ord, Show)
 
 
 -- | A value tagged with a race index. Uses include race identification and
