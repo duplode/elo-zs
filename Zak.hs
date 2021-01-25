@@ -107,10 +107,14 @@ demoMeanSnap eopts = testData def
 
 -- This might cause trouble with many rows. Rendering the race labels as a
 -- normal column would likely help.
-demoPersonalHistory :: EloOptions -> PipId -> Tab.Table String String String
-demoPersonalHistory eopts p = testData def
+demoPersonalHistory
+    :: EloOptions
+    -> PostProcessOptions
+    -> PipId
+    -> Tab.Table String String String
+demoPersonalHistory eopts ppopts p = testData def
     & LS.scan
-        (distillRatings eopts def {excludeProvisional = True}
+        (distillRatings eopts ppopts
             <$> allRatings eopts)
     & personalHistory p
     & arrangeTable
