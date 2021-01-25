@@ -17,6 +17,7 @@ module Engine
     ) where
 
 import Types
+import Weighing (witch)
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
@@ -184,17 +185,6 @@ toDelta eopts rtgs xy =
     kBase = eloModulation eopts
     kHi = kBase * eloProvisionalFactor eopts
     kLo = kBase / eloProvisionalFactor eopts
-
--- | Scaled witch of Agnesi.
-witch
-    :: Double  -- ^ x-scaling, as a specific distance from the center.
-    -> Double  -- ^ Relative steepness (y-ratio at x-scaling from the peak).
-    -> Double  -- ^ Peak location, center of the curve.
-    -> Double  -- ^ x value.
-    -> Double
-witch d s c x = 1 / (b * (x - c)^2 + 1)
-    where
-    b = (1 - s) / (s * d^2)
 
 -- | Applies a rating change to the collection of ratings.
 --

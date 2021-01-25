@@ -25,6 +25,7 @@ executable elo-zs
                      , Analysis.PerfModel.Reference.Precompute
                      , Analysis.PerfModel.Orbital
                      , Analysis.Simulation
+                     , Weighing
                      , Engine
                      , Types
                      , Tidying
