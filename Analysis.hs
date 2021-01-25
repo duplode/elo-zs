@@ -374,11 +374,16 @@ simStrength eopts simOpts =
 -- evaluation metric along the lines of Dehpanah et al.,
 -- [/The Evaluation of Rating Systems in Online Free-for-All Games/](https://arxiv.org/abs/2008.06787v1)
 -- (2020). See also https://en.wikipedia.org/wiki/Discounted_cumulative_gain .
-ndcg :: EloOptions -> LS.Scan (N.NonEmpty (Result PipId Rank')) Double
+ndcg
+    :: EloOptions
+    -> LS.Scan (N.NonEmpty (Result PipId Rank')) (AtRace Double)
+    -- ^ Note that the 'AtRace' context returned here correspond to the race
+    -- from which the ratings were sourced; that is, to the race before the
+    -- one whose NDCG is given.
 ndcg eopts = previousRatings eopts &&& returnA
     >>> arr (uncurry pickActives)
-    >>> arr (expectedRanks *** actualRanks)
-    >>> arr (uncurry computeNdcg)
+    >>> arr (fmap @AtRace expectedRanks *** actualRanks)
+    >>> arr (\(exs, acs) -> fmap @AtRace (flip computeNdcg acs) exs)
     where
     -- The order is such that both rank lists are ordered by pipsqueak tag.
     expectedRanks = id
@@ -394,16 +399,16 @@ ndcg eopts = previousRatings eopts &&& returnA
                 . map (\(Result p x) -> (p, x))
                 . N.toList
                 $ entries
-        in (activityMerger (extract rtgs) selector, entries)
+        in (fmap @AtRace (activityMerger selector) rtgs, entries)
     -- Merges previous ratings and current entries, while extracting ratings
     -- and makes sure no race entries are missing.
     activityMerger = Map.merge
-        -- Drop those who didn't took part in the current race.
-        Map.dropMissing
         -- Insert new racers with the default rating.
         (Map.mapMissing (\_ _ -> initialRating))
+        -- Drop those who didn't took part in the current race.
+        Map.dropMissing
         -- Use existing ratings whenever they exist.
-        (Map.zipWithMatched (\_ pd _ -> rating pd))
+        (Map.zipWithMatched (\_ _ pd -> rating pd))
     actualRanks = map result
         . sortBy (comparing pipsqueakTag)
         . N.toList
@@ -422,15 +427,19 @@ data SP a b = SP !a !b
 ndcgSim
     :: EloOptions
     -> SimOptions
-    -> LS.ScanM SimM (N.NonEmpty (Result PipId Rank')) Double
+    -> LS.ScanM SimM (N.NonEmpty (Result PipId Rank')) (AtRace Double)
+    -- ^ Note that the 'AtRace' context returned here correspond to the race
+    -- from which the ratings were sourced; that is, to the race before the
+    -- one whose NDCG is given.
 ndcgSim eopts simOpts =
     LS.generalize (previousRatings eopts &&& returnA)
     >>> LS.generalize (arr (uncurry pickActives))
-    >>> LS.arrM (fmap Map.elems . runSimsForRace) *** LS.generalize (arr actualRanks)
-    >>> LS.generalize (arr (uncurry computeNdcg))
+    >>> LS.arrM runSimsForRace *** LS.generalize (arr actualRanks)
+    >>> LS.generalize (arr (\(exs, acs) ->
+            fmap @AtRace (flip computeNdcg acs) exs))
     where
 
-    runSimsForRace = simAveragePositions simOpts
+    runSimsForRace = surroundL (fmap Map.elems . simAveragePositions simOpts)
 
     -- TODO: Deduplicate this.
     -- Using the race results to only keep previous ratings for those who took
@@ -443,19 +452,19 @@ ndcgSim eopts simOpts =
                 . map (\(Result p x) -> (p, x))
                 . N.toList
                 $ entries
-        in (activityMerger (extract rtgs) selector, entries)
+        in (fmap @AtRace (activityMerger selector) rtgs, entries)
     -- Merges previous ratings and current entries, while extracting ratings
     -- and makes sure no race entries are missing.
     --
     -- This is a convenient place to limit accounted for racers to a rating
     -- floor.
     activityMerger = Map.merge
-        -- Drop those who didn't took part in the current race.
-        Map.dropMissing
         -- Insert new racers with the default rating.
         (Map.mapMissing (\_ _ -> decoyPipData))
+        -- Drop those who didn't took part in the current race.
+        Map.dropMissing
         -- Use existing ratings whenever they exist.
-        (Map.zipWithMatched (\_ pd _ -> pd))
+        (Map.zipWithMatched (\_ _ pd -> pd))
     -- Ideally we'd supply only the rating. Some of the signatures around here
     -- should probably be changed.
     decoyPipData = PipData initialRating 0 0

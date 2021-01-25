@@ -288,47 +288,44 @@ demoSimStrength eopts simOptions = testData def
 demoNdcg :: EloOptions -> Tab.Table String String String
 demoNdcg eopts = testData def
     & LS.scan (ndcg eopts)
-    & zip [1..]
     & drop 1  -- TODO: Figure out how to get useful results for the first race.
     & arrangeTable
-         (fmap (show . fst))
+         (fmap (toZakLabel . (+ 1) . raceIx))
          ["NDCG"]
-         (\(_, x) -> [show x])
+         ((:[]) . show . extract)
 
 demoNdcgComparison :: [(String, EloOptions)] -> Tab.Table String String String
 demoNdcgComparison experiments =
     map (\eopts -> LS.scan (ndcg eopts) (testData def)) eoptss
     & transpose
-    & zip [1..]
     & drop 1  -- TODO: Figure out how to get useful results for the first race.
     & arrangeTable
-         (fmap (show . fst))
+         (map (toZakLabel . (+ 1) . maybe 0 raceIx . listToMaybe))
          titles
-         (\(_, xs) -> map show xs)
+         (map (show . extract))
     where
     (titles, eoptss) = N.unzip experiments
 
 demoNdcgSim :: EloOptions -> SimOptions -> SimM (Tab.Table String String String)
 demoNdcgSim eopts simOpts = testData def
     & LS.scanM (ndcgSim eopts simOpts)
-    >>= \res -> res & zip [1..]
+    >>= \res -> res
     & drop 1  -- TODO: Figure out how to get useful results for the first race.
     & arrangeTable
-         (fmap (show . fst))
+         (fmap (toZakLabel . (+ 1) . raceIx))
          ["NDCG"]
-         (\(_, x) -> [show x])
+         ((:[]) . show . extract)
     & return
 
 demoNdcgSimComparison :: SimOptions -> [(String, EloOptions)] -> SimM (Tab.Table String String String)
 demoNdcgSimComparison simOpts experiments =
     traverse runExperiment eoptss
     >>= \res -> res & transpose
-    & zip [1..]
     & drop 1  -- TODO: Figure out how to get useful results for the first race.
     & arrangeTable
-         (fmap (show . fst))
+         (map (toZakLabel . (+ 1) . maybe 0 raceIx . listToMaybe))
          titles
-         (\(_, xs) -> map show xs)
+         (map (show . extract))
     & return
     where
     (titles, eoptss) = N.unzip experiments
