@@ -131,6 +131,9 @@ data EloOptions = EloOptions
         -- provisional after the fifth event, while 0 disables provisional
         -- ratings.
     , eloProvisionalGraduation :: Int
+        -- Whether to use the provisional modulation factor for both players
+        -- when both have provisional status.
+    , eloFullyProvisionalMatches :: Bool
         -- | How much weight should be given to matches between players far
         -- removed from each other in the event results. The supplied value,
         -- if any, amounts to the sum of all weights in the limit of an
@@ -147,9 +150,10 @@ data EloOptions = EloOptions
 
 instance Default EloOptions where
     def = EloOptions
-        { eloModulation = 24
+        { eloModulation = 20
         , eloProvisionalFactor = 2
         , eloProvisionalGraduation = 5
+        , eloFullyProvisionalMatches = True
         , eloRemotenessModulation = Just 22
         }
 

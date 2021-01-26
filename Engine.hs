@@ -167,6 +167,9 @@ toDelta eopts rtgs xy =
                 = (kHi, kLo)
             | not (provisionalCheck px) && provisionalCheck py
                 = (kLo, kHi)
+            | eloFullyProvisionalMatches eopts
+                && provisionalCheck px && provisionalCheck py
+                = (kHi, kHi)
             | otherwise = (kBase, kBase)
         -- Remoteness weight.
         w = maybe 1
