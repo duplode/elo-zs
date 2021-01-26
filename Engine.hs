@@ -12,7 +12,6 @@ module Engine
     ( finalRatings
     , allRatings
     , previousRatings
-    , isProvisional
     , initialRating
     ) where
 

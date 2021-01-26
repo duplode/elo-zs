@@ -39,7 +39,7 @@ demoHighest :: EloOptions -> Tab.Table String String String
 demoHighest eopts = testData def
     & L.fold
         (highestPerPip `o`
-            (distillRatings eopts def {excludeProvisional=True} <$> finalRatings eopts))
+            (distillRatings def <$> finalRatings eopts))
     & Map.toList & sortBy (comparing (Down . extract . snd))
     & arrangeTable
         (fmap show . zipWith const [1..])
@@ -50,7 +50,7 @@ demoAccumulated :: EloOptions -> Tab.Table String String String
 demoAccumulated eopts = testData def
     & LS.scan
         (accumulatedRatings
-            . distillRatings eopts def {excludeProvisional=False}
+            . distillRatings def {provisionalCut=Nothing}
                 <$> allRatings eopts)
     & sortBy (comparing (Down . extract))
     & arrangeTable
@@ -63,7 +63,7 @@ demoPipCount eopts = testData def
     & LS.scan
         (codistributeL
             . (extract . pipCount &&& fmap log . reinvertedRatings)
-            . distillRatings eopts def {excludeProvisional=False}
+            . distillRatings def {provisionalCut=Nothing}
                 <$> allRatings eopts)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
@@ -74,7 +74,7 @@ demoMean :: EloOptions -> Tab.Table String String String
 demoMean eopts = testData def
     & LS.scan
         (meanRatingPerRace
-            . distillRatings eopts def {excludeProvisional=False}
+            . distillRatings def {provisionalCut=Nothing}
                 <$> allRatings eopts)
     & sortBy (comparing (Down . extract))
     & arrangeTable
@@ -86,7 +86,7 @@ demoWindowLeaders :: EloOptions -> Tab.Table String String String
 demoWindowLeaders eopts = testData def
     & LS.scan
         (windowLeaders
-            . distillRatings eopts def {excludeProvisional=True}
+            . distillRatings def
                 <$> allRatings eopts)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
@@ -98,7 +98,7 @@ demoMeanSnap eopts = testData def
     & LS.scan
         (meanRatingAtSnapshot
             -- . distillRatings eopts def{activityCut=Just 12, excludeProvisional=True}
-            . distillRatings eopts def {activityCut=Nothing, excludeProvisional=True}
+            . distillRatings def {activityCut=Nothing, provisionalCut=Nothing}
                 <$> allRatings eopts)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
@@ -114,7 +114,7 @@ demoPersonalHistory
     -> Tab.Table String String String
 demoPersonalHistory eopts ppopts p = testData def
     & LS.scan
-        (distillRatings eopts ppopts
+        (distillRatings ppopts
             <$> allRatings eopts)
     & personalHistory p
     & arrangeTable
@@ -127,7 +127,7 @@ demoHeadToHead eopts ps = testData def
     & LS.scan
         (combineAtRaces
             . traverse personalRating ps
-            . distillRatings eopts def {excludeProvisional = True}
+            . distillRatings def
                 <$> allRatings eopts)
     & catMaybes
     & arrangeTable
@@ -153,7 +153,7 @@ runTest :: EloOptions -> DataPreparationOptions -> PostProcessOptions -> [(PipId
 runTest eopts dpopts ppopts = LS.scan (allRatings eopts) (testData dpopts)
     & maybe last (flip (!!)) (selectedRace ppopts)
     & fmap @AtRace Map.toList
-    & distillRatingsAssocList eopts ppopts
+    & distillRatingsAssocList ppopts
     & extract & fmap (second rating)
     & sortBy (comparing (Down . snd))
 
@@ -187,7 +187,7 @@ demoCurrent eopts = testData def
         (\(p, (rtg, pk)) -> [T.unpack p, show rtg, show pk])
     where
     ratingsFold
-        = distillRatings eopts def {activityCut=Just 12, excludeProvisional=True}
+        = distillRatings def {activityCut=Just 12}
         <$> allRatings eopts
 
 demoWeighedScores :: EloOptions -> RaceIx -> Tab.Table String String String

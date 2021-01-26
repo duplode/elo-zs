@@ -124,33 +124,30 @@ personalRating p = fmap @AtRace (fmap rating . Map.lookup p)
 -- | Should this rating be retained according to the post-processing
 -- criteria?
 isKeptRating
-    :: EloOptions
-    -> PostProcessOptions
+    :: PostProcessOptions
     -> RaceIx              -- ^ Current event index.
     -> PipData
     -> Bool
-isKeptRating eopts ppopts ri rtg =
+isKeptRating ppopts ri rtg =
     maybe True (\ac -> ri - lastRace rtg < ac) (activityCut ppopts)
-        && not (excludeProvisional ppopts && isProvisional eopts rtg)
+        && maybe True (\pc -> entries rtg >= pc) (provisionalCut ppopts)
 
 -- | Apply the post-processing criteria to filter ratings (association list
 -- version).
 distillRatingsAssocList
-    :: EloOptions
-    -> PostProcessOptions
+    :: PostProcessOptions
     -> AtRace [(p, PipData)]
     -> AtRace [(p, PipData)]
-distillRatingsAssocList eopts ppopts = extend $
-    \(AtRace ri rtgs) -> filter (isKeptRating eopts ppopts ri . snd) rtgs
+distillRatingsAssocList ppopts = extend $
+    \(AtRace ri rtgs) -> filter (isKeptRating ppopts ri . snd) rtgs
 
 -- | Apply the post-processing criteria to filter ratings (Map version).
 distillRatings
-    :: EloOptions
-    -> PostProcessOptions
+    :: PostProcessOptions
     -> AtRace Ratings
     -> AtRace Ratings
-distillRatings eopts ppopts = extend $
-    \(AtRace ri rtgs) ->  Map.filter (isKeptRating eopts ppopts ri) rtgs
+distillRatings ppopts = extend $
+    \(AtRace ri rtgs) ->  Map.filter (isKeptRating ppopts ri) rtgs
 
 -- Below follow various approaches to race strength estimation.
 
@@ -169,7 +166,7 @@ simpleWeighedScores eopts
     computeScores = fmap (fmap @(Result _) exponentialScoring)
     strength = fmap @AtRace strengthConversion
         . accumulatedRatings
-        . distillRatings eopts def {excludeProvisional=False}
+        . distillRatings def {provisionalCut=Nothing}
         <$> allRatings eopts
     strengthConversion = logisticStrengthConversion
 
@@ -191,7 +188,7 @@ weighedStrength
     -> LS.Scan (N.NonEmpty (Result PipId Rank')) (AtRace Rank')
 weighedStrength eopts = id  -- fmap @AtRace strengthConversion
     . accumulatedRatings
-    . distillRatings eopts def {excludeProvisional=False}
+    . distillRatings def {provisionalCut=Nothing}
     <$> (fmap @AtRace . preWeighing <$> returnA <*> allRatings eopts)
     where
     -- Variable weighing is very similar to not having midfield weighing at
@@ -236,7 +233,7 @@ reinvertedStrength
 reinvertedStrength eopts = id  -- fmap @AtRace strengthConversion
     . fmap (logBase 10)
     . reinvertedRatings
-    . distillRatings eopts def {excludeProvisional=False}
+    . distillRatings def {provisionalCut=Nothing}
     <$> allRatings eopts
 
 -- | Reciprocal of the probability of a 1500-rated probe-racer (see also
@@ -261,7 +258,7 @@ perfStrength eopts = id
     . fmap @AtRace (perfModelStrength . map rating . Map.elems)
     . extend (\(AtRace ri rtgs)
         -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
-    . distillRatings eopts def {excludeProvisional=False}
+    . distillRatings def {provisionalCut=Nothing}
     <$> allRatings eopts
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
@@ -273,7 +270,7 @@ perfTopStrength eopts = id
     . fmap @AtRace (perfModelTopStrength 5 . map rating . Map.elems)
     . extend (\(AtRace ri rtgs)
         -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
-    . distillRatings eopts def {excludeProvisional=False}
+    . distillRatings def {provisionalCut=Nothing}
     <$> allRatings eopts
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
@@ -286,7 +283,7 @@ perfTopStrength' eopts pos = LS.arrM integrateRaces <<< LS.generalize basicScan
     where
     basicScan = extend (\(AtRace ri rtgs)
             -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
-        . distillRatings eopts def {excludeProvisional=False}
+        . distillRatings def {provisionalCut=Nothing}
         <$> allRatings eopts
     integrateRaces ar = do
         -- The top-N cutoff should be made properly configurable.
@@ -310,7 +307,7 @@ simStrength eopts simOpts =
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
     basicScan = extend (\(AtRace ri rtgs)
             -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
-        . distillRatings eopts def {excludeProvisional=False}
+        . distillRatings def {provisionalCut=Nothing}
         <$> allRatings eopts
     runSimsForRace = codistributeL . fmap @AtRace (simModelStrength simOpts)
         <=< (\ar -> liftIO $ putStrLn ("Runs for race #" ++ show (raceIx ar))

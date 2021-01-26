@@ -55,22 +55,28 @@ tidyRanks =
     . N.groupAllWith1 result
 
 data PostProcessOptions = PPOpts
-    { activityCut :: Maybe Int    -- ^ If defined, specifies that a player
-                                  -- must have competed at least once within
-                                  -- the specified number of recent events in
-                                  -- order to be included in the final
-                                  -- results.
+    { activityCut :: Maybe Int       -- ^ If defined, specifies that a player
+                                     -- must have competed at least once
+                                     -- within the specified number of recent
+                                     -- events in order to be included in the
+                                     -- final results.
+    , provisionalCut :: Maybe Int    -- ^ If defined, specifies that a player
+                                     -- must have competed in at least the
+                                     -- specified number of events to be
+                                     -- included in the final results. Note
+                                     -- that this cutoff is strictly
+                                     -- presentational and is not related to
+                                     -- the provisional modulation parameters
+                                     -- defined through 'EloOptions'.
     , selectedRace :: Maybe RaceIx   -- ^ Picks a specific event for a single
                                      -- event query. The usual default is the
                                      -- most recent event.
-    , excludeProvisional :: Bool  -- ^ Should racers with provisional ratings
-                                  -- be excluded from the final results?
     }
 
 instance Default PostProcessOptions where
     def = PPOpts
         { activityCut = Nothing
+        , provisionalCut = Just 5
         , selectedRace = Nothing
-        , excludeProvisional = False
         }
 
