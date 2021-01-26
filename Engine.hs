@@ -161,21 +161,30 @@ toDelta eopts rtgs xy =
     let px = Map.lookup (player xy) rtgs
         py = Map.lookup (opponent xy) rtgs
         gap = maybe initialRating rating px - maybe initialRating rating py
-        (kx, ky)
-            | provisionalCheck px && not (provisionalCheck py)
-                = (kHi, kLo)
-            | not (provisionalCheck px) && provisionalCheck py
-                = (kLo, kHi)
-            | eloFullyProvisionalMatches eopts
-                && provisionalCheck px && provisionalCheck py
-                = (kHi, kHi)
-            | otherwise = (kBase, kBase)
+        (kx, ky) = modulationFactors eopts px py
         -- Remoteness weight.
         w = maybe 1
             (\n -> witch (n/pi) (1/2) 0 (remoteness xy))
             (eloRemotenessModulation eopts)
         baseDelta = w * scoreDiscrepancy gap (outcome xy)
     in ((player xy, kx * baseDelta), (opponent xy, -ky * baseDelta))
+
+-- | The modulation factors to use, accounting for the players possibly
+-- having provisional ratings.
+modulationFactors
+    :: EloOptions
+    -> Maybe PipData
+    -> Maybe PipData
+    -> (Double, Double)
+modulationFactors eopts px py
+    | provisionalCheck px && not (provisionalCheck py)
+        = (kHi, kLo)
+    | not (provisionalCheck px) && provisionalCheck py
+        = (kLo, kHi)
+    | eloFullyProvisionalMatches eopts
+        && provisionalCheck px && provisionalCheck py
+        = (kHi, kHi)
+    | otherwise = (kBase, kBase)
     where
     -- Provisional rating test, defaulting to True for new entrants. Note
     -- that for the purposes of rating calculation the test is applied before
@@ -183,7 +192,6 @@ toDelta eopts rtgs xy =
     provisionalCheck :: Maybe PipData -> Bool
     provisionalCheck = maybe True (isProvisional eopts)
 
-    -- Modulation factors.
     kBase = eloModulation eopts
     kHi = kBase * eloProvisionalFactor eopts
     kLo = kBase / eloProvisionalFactor eopts
