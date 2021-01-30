@@ -24,7 +24,7 @@ simMain = do
         (fromSeed seed, fromSeed newSeed)
 
 perfMain = do
-    let eopts = def
+    let eopts = eoptsSmoothTest  -- def
     -- let eopts = eoptsDirect
     tab <- demoPerfTopStrength' eopts
     demoToCsv "test2.csv" tab
@@ -41,3 +41,11 @@ ndcgSimMain = do
 
 -- A reasonable default when using the Direct modules.
 eoptsDirect = def { eloModulation = 4/75 }
+
+-- Options for the experiments with smooth provisional factors.
+eoptsSmoothTest = def
+    { eloModulation = 18
+    , eloProvisionalGraduation = 12
+    , eloProvisionalStrategy = SmoothFactorProvisional
+    , eloProvisionalFactor = 2.034
+    }

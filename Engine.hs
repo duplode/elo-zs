@@ -88,14 +88,6 @@ scoreDiscrepancy gap otc = wdlScore otc - expectedScore
     -- to a ~70.4 rating gap, and a 0.9 expected score, to a ~382 gap.
     w = 400
 
--- | Is the player rating provisional?
---
--- Note the comparison should be pefromed with the number of entries before
--- the current event.
-isProvisional :: EloOptions -> PipData -> Bool
-isProvisional eopts rtg = entries rtg < eloProvisionalGraduation eopts
-
-
 -- | The core rating update engine.
 updateRatings
     :: forall p. Ord p
@@ -161,7 +153,13 @@ toDelta eopts rtgs xy =
     let px = Map.lookup (player xy) rtgs
         py = Map.lookup (opponent xy) rtgs
         gap = maybe initialRating rating px - maybe initialRating rating py
-        (kx, ky) = modulationFactors eopts px py
+        (kx, ky) = case eloProvisionalStrategy eopts of
+            NoProvisional ->
+                (eloModulation eopts, eloModulation eopts)
+            FixedFactorProvisional ->
+                modulationFixedProvisional eopts px py
+            SmoothFactorProvisional ->
+                modulationSmoothProvisional eopts px py
         -- Remoteness weight.
         w = maybe 1
             (\n -> witch (n/pi) (1/2) 0 (remoteness xy))
@@ -170,13 +168,13 @@ toDelta eopts rtgs xy =
     in ((player xy, kx * baseDelta), (opponent xy, -ky * baseDelta))
 
 -- | The modulation factors to use, accounting for the players possibly
--- having provisional ratings.
-modulationFactors
+-- having provisional ratings using the fixed factor strategy.
+modulationFixedProvisional
     :: EloOptions
     -> Maybe PipData
     -> Maybe PipData
     -> (Double, Double)
-modulationFactors eopts px py
+modulationFixedProvisional eopts px py
     | provisionalCheck px && not (provisionalCheck py)
         = (kHi, kLo)
     | not (provisionalCheck px) && provisionalCheck py
@@ -195,6 +193,43 @@ modulationFactors eopts px py
     kBase = eloModulation eopts
     kHi = kBase * eloProvisionalFactor eopts
     kLo = kBase / eloProvisionalFactor eopts
+
+-- | The modulation factors to use, accounting for the players possibly
+-- having provisional ratings using the smooth factor strategy.
+modulationSmoothProvisional
+    :: EloOptions
+    -> Maybe PipData
+    -> Maybe PipData
+    -> (Double, Double)
+modulationSmoothProvisional eopts px py
+    | provisionalCheck px && not (provisionalCheck py)
+        = (kHi px, kLo px)
+    | not (provisionalCheck px) && provisionalCheck py
+        = (kLo py, kHi py)
+    | eloFullyProvisionalMatches eopts
+        && provisionalCheck px && provisionalCheck py
+        = (kHi px, kHi py)
+    | otherwise = (kBase, kBase)
+    where
+    -- Provisional rating test, defaulting to True for new entrants. Note
+    -- that for the purposes of rating calculation the test is applied before
+    -- the update.
+    provisionalCheck :: Maybe PipData -> Bool
+    provisionalCheck = maybe True (isProvisional eopts)
+
+    previousEntries :: Maybe PipData -> Int
+    previousEntries = maybe 0 entries
+
+    kBase :: Double
+    kBase = eloModulation eopts
+
+    -- Note that both kHi and kLo here use the factor from whoever is the
+    -- provisionally rated player.
+    kHi :: Maybe PipData -> Double
+    kHi pz = kBase * provisionalDecay eopts (previousEntries pz)
+
+    kLo :: Maybe PipData -> Double
+    kLo pz = kBase / provisionalDecay eopts (previousEntries pz)
 
 -- | Applies a rating change to the collection of ratings.
 --
@@ -216,3 +251,63 @@ applyChange ri' rtgs (p, d) = Map.alter upsertPip p rtgs
 updateCount :: Ord p => RaceIx -> Map p PipData -> Map p PipData
 updateCount ri' = fmap (\(PipData rtg n i) ->
     PipData rtg (bool id (+ 1) (i == ri') n) i)
+
+-- | Is the player rating provisional?
+--
+-- Note the comparison should be pefromed with the number of entries before
+-- the current event.
+isProvisional :: EloOptions -> PipData -> Bool
+isProvisional eopts rtg = entries rtg < eloProvisionalGraduation eopts
+
+-- | Exponential decay for smooth provisional modulation.
+provisionalDecay
+    :: EloOptions
+    -> Int  -- ^ Number of previous entries.
+    -> Double
+provisionalDecay eopts nEntries = fctr ** (1 - x / grad)
+    where
+    x = fromIntegral nEntries
+    grad = fromIntegral (eloProvisionalGraduation eopts)
+    fctr = eloProvisionalFactor eopts
+-- Note that 'provisionalDecay' uses the supplied factor for the first event
+-- only. Given the exponential decay, that means the same factor will have
+-- less of an effect with the smooth strategy than with the fixed one. Here
+-- are some correspondences of factors:
+--
+-- - Graduation after 5 events:
+--
+--   - 1.5 smooth = 1.284 fixed
+--   - 2.0 smooth = 1.545 fixed
+--   - 2.5 smooth = 1.792 fixed
+--   - 3.0 smooth = 2.028 fixed
+--   - 3.5 smooth = 2.256 fixed
+--   - 4.0 smooth = 2.478 fixed
+--
+--   - 1.5 fixed ≈ 1.912 smooth
+--   - 2.0 fixed ≈ 2.941 smooth
+--   - 2.5 fixed ≈ 4.051 smooth
+--   - 3.0 fixed ≈ 5.223 smooth
+--   - 3.5 fixed ≈ 6.444 smooth
+--   - 4.0 fixed ≈ 7.706 smooth
+--
+-- - Graduation after 12 events:
+--
+--   - 1.5 smooth ≈ 1.254 fixed
+--   - 2.0 smooth ≈ 1.485 fixed
+--   - 2.5 smooth ≈ 1.700 fixed
+--   - 3.0 smooth ≈ 1.905 fixed
+--   - 3.5 smooth ≈ 2.102 fixed
+--   - 4.0 smooth ≈ 2.291 fixed
+--
+--   - 1.5 fixed ≈ 2.034 smooth
+--   - 2.0 fixed ≈ 3.239 smooth
+--   - 2.5 fixed ≈ 4.566 smooth
+--   - 3.0 fixed ≈ 5.989 smooth
+--   - 3.5 fixed ≈ 7.487 smooth
+--   - 4.0 fixed ≈ 9.049 smooth
+--
+-- The smooth/fixed effect ratio tends to log fctr/(fctr - 1) as the number
+-- of events grows and the integration steps get smoother, though the
+-- convergence is rather slow. Demo code for checking the ratios follows:
+--
+-- ($ 5) $ \n -> (/ fromIntegral n) . sum $ provisionalDecay def { eloProvisionalStrategy = SmoothFactorProvisional, eloProvisionalFactor = 1.5 } <$> [0..n-1]

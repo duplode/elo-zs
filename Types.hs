@@ -19,6 +19,7 @@ module Types (
     , FaceOff(..)
     , FaceOff'
     , EloOptions(..)
+    , EloProvStrategy(..)
     -- * Race index tagging
     , AtRace(..)
     , raceIx
@@ -111,29 +112,6 @@ data EloOptions = EloOptions
         -- might be used to compensate for the high number of matches in a typical
         -- race.
       eloModulation :: Double
-        -- | Correction factor for the modulation in matches involving one player
-        -- with a provisional rating.
-        --
-        -- With values above 1, provisionally rated players will have a higher
-        -- modulation factor, so that their ratings converge more quickly, and
-        -- their opponents with non-provisional ratings will ratings have a
-        -- lower modulation factor, so that their ratings are less affected by
-        -- matches against players with uncertain ratings.
-        --
-        -- Using different modulation factors in a single match means a match can
-        -- cause a net change on the accumulated rating of the player pool. On
-        -- why that is less of a problem than it might seem at first, see
-        -- Glickman (1995), p. 36.
-    , eloProvisionalFactor :: Double
-        -- The number of earlier events a player must have taken part in so that
-        -- their rating isn't counted as provisional in the current event. For
-        -- instance, the default value of 5 means the rating ceases being
-        -- provisional after the fifth event, while 0 disables provisional
-        -- ratings.
-    , eloProvisionalGraduation :: Int
-        -- Whether to use the provisional modulation factor for both players
-        -- when both have provisional status.
-    , eloFullyProvisionalMatches :: Bool
         -- | How much weight should be given to matches between players far
         -- removed from each other in the event results. The supplied value,
         -- if any, amounts to the sum of all weights in the limit of an
@@ -145,16 +123,55 @@ data EloOptions = EloOptions
         -- racer number variations from having an exaggerated effect on the
         -- rankings.
     , eloRemotenessModulation :: Maybe Double
+        -- | Which modulation adjustment strategy to use for provisional
+        -- ratings.
+    , eloProvisionalStrategy :: EloProvStrategy
+        -- | Whether to use the provisional modulation factor for both players
+        -- when both have provisional status.
+    , eloFullyProvisionalMatches :: Bool
+        -- | The number of earlier events a player must have taken part in so
+        -- that their rating isn't counted as provisional in the current event.
+        -- For instance, the default value of 5 means the rating ceases being
+        -- provisional after the fifth event, while 0 disables provisional
+        -- ratings.
+    , eloProvisionalGraduation :: Int
+        -- | Correction factor for the modulation in matches involving one
+        -- player with a provisional rating.
+        --
+        -- With values above 1, provisionally rated players will have a higher
+        -- modulation factor, so that their ratings converge more quickly, and
+        -- their opponents with non-provisional ratings will ratings have a
+        -- lower modulation factor, so that their ratings are less affected by
+        -- matches against players with uncertain ratings.
+        --
+        -- Note that the precise way in which the factor affets modulation
+        -- depends on the choice for 'eloProvisionalStrategy'.
+        --
+        -- Using different modulation factors in a single match means a match
+        -- can cause a net change on the accumulated rating of the player pool.
+        -- On why that is less of a problem than it might seem at first, see
+        -- Glickman (1995), p. 36.
+    , eloProvisionalFactor :: Double
     }
     deriving (Eq, Show)
+
+-- | The strategy for handling provisional ratings in the Elo engine.
+data EloProvStrategy
+    = NoProvisional            -- ^ Turns off provisional ratings.
+    | FixedFactorProvisional   -- ^ Changes modulations by a fixed factor.
+    | SmoothFactorProvisional  -- ^ Changes modulations by a variable factor
+                               -- that decays exponentially over the events.
+    deriving (Eq, Enum, Show)
+
 
 instance Default EloOptions where
     def = EloOptions
         { eloModulation = 20
-        , eloProvisionalFactor = 2
-        , eloProvisionalGraduation = 5
-        , eloFullyProvisionalMatches = True
         , eloRemotenessModulation = Just 22
+        , eloProvisionalStrategy = FixedFactorProvisional
+        , eloFullyProvisionalMatches = True
+        , eloProvisionalGraduation = 5
+        , eloProvisionalFactor = 2
         }
 
 
