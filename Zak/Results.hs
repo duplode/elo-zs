@@ -126,6 +126,7 @@ crudeData =
     , c198, c199, c200, c201, c202, c203, c204, c205, c206, c207, c208, c209
     , c210, c211, c212, c213, c214, c215, c216, c217, c218, c219, c220, c221
     , c222, c223, c224, c225, c226, c227, c228, c229, c230, c231, c232, c233
+    , c234
     ]
 
 -- Events in ZakStunts history which are relevant for evaluating how the
@@ -3986,5 +3987,30 @@ c233 = NoDraws
         , "Cas"
         , "Zak McKracken"
         , "Shoegazing Leo"
+        --, "Stan 286XT"  -- Rule #3 exclusion
+        ]
+
+c234 = NoDraws
+        [ "Duplode"
+        , "Alan Rotoi"
+        , "CTG"
+        , "Akoss Poo"
+        , "Marco"
+        , "Overdrijf"
+        , "Zak McKracken"
+        , "dreadnaut"
+        , "KyLiE"
+        , "Friker"
+        , "Heretic"
+        , "afullo"
+        , "Zapper"
+        , "Cas"
+        , "Usrin"
+        , "Shoegazing Leo"
+        , "Igorp"
+        , "matamo"
+        , "Daniel3D"
+        --, "KaoS"  -- # Rule #3 exclusion
+        --, "Straycat"  -- Rule #3 exclusion
         --, "Stan 286XT"  -- Rule #3 exclusion
         ]
