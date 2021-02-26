@@ -39,7 +39,7 @@ module Analysis.PerfModel.Reference.Naive
     , perfModelTopStrength
     ) where
 
-import Analysis.PerfModel.Orbital
+import Orbital
 import Engine (initialRating)
 
 import qualified Numeric.Integration.TanhSinh as Integration

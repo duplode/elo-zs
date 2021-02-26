@@ -40,7 +40,7 @@ module Analysis.PerfModel.Reference.Precompute
     , example
     ) where
 
-import Analysis.PerfModel.Orbital
+import Orbital
 import Engine (initialRating)
 import qualified Analysis.PerfModel.Reference.Naive as R
 import qualified Util.Combinations as Util

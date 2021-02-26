@@ -7,7 +7,7 @@ import Engine
 import Tidying
 import Util.Lone
 import Analysis.PerfModel
-import Analysis.Simulation
+import Simulation
 import Weighing
 
 import qualified Data.Map.Strict as Map

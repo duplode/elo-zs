@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 -- |
--- Module Analysis.PerfModel.Orbital
+-- Module Orbital
 --
 -- A custom probability distribution for driver laptimes.
 --
@@ -10,7 +10,7 @@
 --
 -- The name "orbital" alludes to this PDF being, modulo constant factors, the
 -- radial probability density of the 1s hydrogen atom orbital.
-module Analysis.PerfModel.Orbital
+module Orbital
     ( orbitalPDF
     , orbitalCDF
     , perfWP

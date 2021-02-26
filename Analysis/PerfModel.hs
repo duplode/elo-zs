@@ -38,9 +38,9 @@ module Analysis.PerfModel
     , example
     ) where
 
-import Analysis.PerfModel.Orbital
+import Orbital
 import Engine (initialRating)
-import qualified Analysis.PerfModel.Reference.Precompute as R
+--import qualified Analysis.PerfModel.Reference.Precompute as R
 import qualified Util.Combinations as Util
 
 import qualified Numeric.Integration.TanhSinh as Integration

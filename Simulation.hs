@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase, GeneralisedNewtypeDeriving #-}
--- | Module Analysis.Simulation
+-- | Module Simulation
 --
 -- Simulate races using the performance model.
-module Analysis.Simulation
+module Simulation
     ( SimPip(..)
     , SimEntry(..)
     , toSimPips
@@ -16,7 +16,7 @@ module Analysis.Simulation
     ) where
 
 import Types
-import Analysis.PerfModel.Orbital
+import Orbital
 import Util.Lone (surroundL)
 
 import System.Random.MWC
