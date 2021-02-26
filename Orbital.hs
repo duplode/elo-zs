@@ -49,7 +49,7 @@ referenceRating = 1800
 
 -- Factoid: exp (1800/400) ~ 90
 referenceK :: Double
-referenceK = 9
+referenceK = 18
 
 -- | k-to-rating conversion (see step 3 in the Analysis.PerfModel
 -- introduction).
@@ -72,13 +72,13 @@ kFromRating rv =
     where
     ru = referenceRating
     u = referenceK
-    -- range = (0, max 5 (10**(rv/1200)))
-    range = (0, max 5 (exp ((5/4) * rv/400) / 10))
+    -- range = (0, max 10 (2 * 10**(rv/1200)))
+    range = (0, max 10 (exp ((5/4) * rv/400) / 5))
     fCrossing v = perfWP u v - eloWP ru rv
     errPfx = "Analysis.PerfModel.Orbital.kFromRating: "
 
 -- | The model distribution is a special case of the gamma distribution, with
--- k = 3 and theta = 1/(2*k).
+-- k = 3 and theta = 1/k.
 newtype OrbitalDistribution = OrbitalDistribution
     { orbitalGamma :: GammaDistribution }
     deriving (Eq, Show, Distribution, ContDistr, ContGen, MaybeEntropy
@@ -88,23 +88,22 @@ newtype OrbitalDistribution = OrbitalDistribution
 orbitalDistr
     :: Double -- ^ k factor of the model.
     -> OrbitalDistribution
-orbitalDistr k = OrbitalDistribution (gammaDistr 3 (1/(2*k)))
+orbitalDistr k = OrbitalDistribution (gammaDistr 3 (1/k))
 
 -- | Recovers the k factor from the distribution.
 orbitalK :: OrbitalDistribution -> Double
-orbitalK distr = 1 / (2 * gdScale (orbitalGamma distr))
+orbitalK distr = 1 / gdScale (orbitalGamma distr)
 
+-- TODO: Use Statistics.Distribution.Gamma instead of orbitalPDF and
+-- orbitalCDF
 
-
--- | PDF of the performance model. Only here for reference, as the actual
--- implementation is in terms of 'Statistics.Distribution.Gamma'.
+-- | PDF of the performance model.
 orbitalPDF :: Double -> Double -> Double
-orbitalPDF k t = 4 * k^3 * t^2 * exp (-2*k*t)
+orbitalPDF k t = let k' = k/2 in 4 * k'^3 * t^2 * exp (-2*k'*t)
 
--- | CDF of the performance model. Only here for reference, as the actual
--- implementation is in terms of 'Statistics.Distribution.Gamma'.
+-- | CDF of the performance model.
 orbitalCDF :: Double -> Double -> Double
-orbitalCDF k t = 1 - (2  * (k*t + 1) * k*t + 1) * exp (-2*k*t)
+orbitalCDF k t = let k' = k/2 in 1 - (2  * (k'*t + 1) * k'*t + 1) * exp (-2*k'*t)
 
 -- | Quantiles of the performance model. Only here for reference, as the actual
 -- implementation is in terms of 'Statistics.Distribution.Gamma'.
@@ -113,9 +112,9 @@ orbitalQuantile k p
     | p == 0 = 0
     | p == 1 = inf
     -- The "not bracketed" error can happen if p is too large and k is too
-    -- low. Setting the upper bound of the root finding algorithm at 100/k
+    -- low. Setting the upper bound of the root finding algorithm at 50/k
     -- appears sufficient to stave that off.
-    | p > 0 && p < 1 = case ridders def (0, 100/k) (fCrossing p) of
+    | p > 0 && p < 1 = case ridders def (0, 50/k) (fCrossing p) of
         NotBracketed -> error $ errPfx ++ "fCrossing is not bracketed"
         SearchFailed -> error $ errPfx ++ "convergence failure"
         Root t -> t

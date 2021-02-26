@@ -160,7 +160,7 @@ simAveragePositions simOpts = fmap (fmap (/ fromIntegral nRuns)
 
 
 example = bimap SimPip orbitalDistr
-    <$> [("HAM", 250), ("BOT", 143), ("VER", 215), ("VET", 190), ("STR", 120)]
+    <$> [("HAM", 500), ("BOT", 286), ("VER", 430), ("VET", 380), ("STR", 240)]
 
 
 (testSeed1, testSeed2) =

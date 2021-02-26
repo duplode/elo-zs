@@ -5,7 +5,7 @@
 -- An experimental approach to obtaining strengths:
 --
 -- 1. Assume time results for racers fit a distribution with PDF
---    p = 4 * k^3 * t^2 * exp (-2*k*t) , with t ranging from 0 to positive
+--    p = (1/2) * k^3 * t^2 * exp (-k*t) , with t ranging from 0 to positive
 --    infinity, as defined in Analysis.PerfModel.Orbital .
 --
 -- 2. Calculate victory probabilities in a match from each racer's k
