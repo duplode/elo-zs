@@ -94,34 +94,10 @@ orbitalDistr k = OrbitalDistribution (gammaDistr 3 (1/k))
 orbitalK :: OrbitalDistribution -> Double
 orbitalK distr = 1 / gdScale (orbitalGamma distr)
 
--- TODO: Use Statistics.Distribution.Gamma instead of orbitalPDF and
--- orbitalCDF
-
 -- | PDF of the performance model.
 orbitalPDF :: Double -> Double -> Double
-orbitalPDF k t = let k' = k/2 in 4 * k'^3 * t^2 * exp (-2*k'*t)
+orbitalPDF k t = density (orbitalDistr k) t
 
 -- | CDF of the performance model.
 orbitalCDF :: Double -> Double -> Double
-orbitalCDF k t = let k' = k/2 in 1 - (2  * (k'*t + 1) * k'*t + 1) * exp (-2*k'*t)
-
--- | Quantiles of the performance model. Only here for reference, as the actual
--- implementation is in terms of 'Statistics.Distribution.Gamma'.
-orbitalQuantile :: Double -> Double -> Double
-orbitalQuantile k p
-    | p == 0 = 0
-    | p == 1 = inf
-    -- The "not bracketed" error can happen if p is too large and k is too
-    -- low. Setting the upper bound of the root finding algorithm at 50/k
-    -- appears sufficient to stave that off.
-    | p > 0 && p < 1 = case ridders def (0, 50/k) (fCrossing p) of
-        NotBracketed -> error $ errPfx ++ "fCrossing is not bracketed"
-        SearchFailed -> error $ errPfx ++ "convergence failure"
-        Root t -> t
-    | otherwise = error $ errPfx ++ "p outside of [0, 1] range"
-    where
-    inf = 1/0
-    fCrossing p t = orbitalCDF k t - p
-    errPfx = "Analysis.PerfModel.Orbital.orbitalQuantile: "
-
-
+orbitalCDF k t = cumulative (orbitalDistr k) t
