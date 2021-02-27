@@ -38,9 +38,6 @@ executable elo-zs
                      , R4K.Results
                      , Util.Lone
                      , Util.Combinations
-                     --, Direct.Engine
-                     --, Direct.Analysis.PerfModel
-                     --, Direct.Analysis.Simulation
   -- other-extensions:
   build-depends:       base >=4.13 && <4.14
                      , containers
