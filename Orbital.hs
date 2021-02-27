@@ -22,27 +22,44 @@ module Orbital
     , orbitalK
     ) where
 
+import qualified Data.Vector as V
 import Numeric.RootFinding
+import Numeric.Polynomial
+import Numeric.SpecFunctions (choose)
 import Statistics.Distribution
 import Statistics.Distribution.Gamma
 
 import Data.Default.Class
 
+-- | Winning probability of a racer with k = u against a racer with k = v,
+-- according to the performance model.
+perfWP :: Double -> Double -> Double
+perfWP u v = ratioWP 3 w
+    where
+    w = u / (u + v)
+
+-- | The base implementation of victory probabilities for performances
+-- modelled by gamma distributions with the same (integer) shape.
+ratioWP :: Int -> Double -> Double
+ratioWP gsh = \w -> w^gsh * evaluatePolynomial w coeffs
+    where
+    coeffs = V.generate gsh $ \i ->
+        (-1)^i * choose gsh i * choose (2*gsh-1) (gsh-1)
+            * fromIntegral (gsh-i) / fromIntegral (gsh+i)
+
+-- | Winning probabilities for (unscaled) rating differences. Ratings are
+-- essentially logarithms of the gamma distribution rate parameters.
+deltaWP :: Int -> Double -> Double
+deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(-d)))
+-- Note that 1 / (1 + exp(-d)) = (1 + tanh (d/2)) / 2
+
 -- | The base Elo exponent.
 alpha :: Double
 alpha = log 10 / 400
 
--- | Winning probability of a racer with k = u against a racer with k = v,
--- according to the performance model.
-perfWP :: Double -> Double -> Double
---perfWP u v = (u^5 + 5*u^4*v + 10*u^3*v^2) / (u + v)^5
-perfWP u v = w^3*(6*w^2 - 15*w + 10)
-    where
-    w = u / (u + v)
-
 -- | Elo-based winning probability.
 eloWP :: Double -> Double -> Double
-eloWP ru rv = 1 / (1 + exp(-alpha*(ru-rv)))
+eloWP ru rv = deltaWP 1 (alpha*(ru-rv))
 
 referenceRating :: Double
 referenceRating = 1800
