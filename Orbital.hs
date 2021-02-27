@@ -14,6 +14,8 @@ module Orbital
     ( orbitalPDF
     , orbitalCDF
     , perfWP
+    , eloAlpha
+    , deltaWP
     , eloWP
     , kFromRating
     , ratingFromK
@@ -53,13 +55,17 @@ deltaWP :: Int -> Double -> Double
 deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(-d)))
 -- Note that 1 / (1 + exp(-d)) = (1 + tanh (d/2)) / 2
 
--- | The base Elo exponent.
-alpha :: Double
-alpha = log 10 / 400
+-- | The base Elo exponent. In essence, a logistic growth factor for expected
+-- scores/winning probabilities. The denominator used here, 400, is standard
+-- for chess rating computations. Using it, a 0.6 expected score corresponds
+-- to a ~70.4 rating gap, and a 0.9 expected score, to a ~382 gap.
+eloAlpha :: Double
+eloAlpha = log 10 / 400
 
--- | Elo-based winning probability.
+-- | Elo-based winning probability. This version takes the ratings of the two
+-- players.
 eloWP :: Double -> Double -> Double
-eloWP ru rv = deltaWP 1 (alpha*(ru-rv))
+eloWP ru rv = deltaWP 1 (eloAlpha*(ru-rv))
 
 referenceRating :: Double
 referenceRating = 1800
@@ -71,7 +77,7 @@ referenceK = 18
 -- | k-to-rating conversion (see step 3 in the Analysis.PerfModel
 -- introduction).
 ratingFromK :: Double -> Double
-ratingFromK v = ru + log (1 / perfWP u v - 1) / alpha
+ratingFromK v = ru + log (1 / perfWP u v - 1) / eloAlpha
     where
     ru = referenceRating
     u = referenceK

@@ -17,6 +17,7 @@ module Engine
 
 import Types
 import Weighing (witch)
+import Orbital (deltaWP, eloAlpha)
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
@@ -82,11 +83,7 @@ scoreDiscrepancy
 scoreDiscrepancy gap otc = wdlScore otc - expectedScore
     where
     -- | Expected score, given the rating gap.
-    expectedScore = 1 / (1 + 10**(-gap/w))
-    -- | Logistic growth factor. The value defined here, 400, is standard for
-    -- chess rating computations. Using it, a 0.6 expected score corresponds
-    -- to a ~70.4 rating gap, and a 0.9 expected score, to a ~382 gap.
-    w = 400
+    expectedScore = deltaWP 1 (eloAlpha * gap)
 
 -- | The core rating update engine.
 updateRatings
