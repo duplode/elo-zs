@@ -15,10 +15,9 @@ main = perfMain
 
 simMain = do
     seed <- save =<< createSystemRandom
-    let simOpts = def -- { simRuns = 100000 }
-        eopts = def
+    let eopts = def -- { simRuns = 100000 }
         -- eopts = eoptsDirect
-    (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength eopts simOpts
+    (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength eopts
     demoToCsv "test.csv" tab
     T.writeFile "last-seed.txt" $ T.pack . show $
         (fromSeed seed, fromSeed newSeed)
@@ -31,10 +30,9 @@ perfMain = do
 
 ndcgSimMain = do
     seed <- save =<< createSystemRandom
-    let simOpts = def { simRuns = 1000 }
-        eopts = def
+    let eopts = def { simRuns = 1000 }
         -- eopts = eoptsDirect
-    (tab, newSeed) <- runSimM (Just seed) $ demoNdcgSim eopts simOpts
+    (tab, newSeed) <- runSimM (Just seed) $ demoNdcgSim eopts
     demoToCsv "test.csv" tab
     T.writeFile "last-seed.txt" $ T.pack . show $
         (fromSeed seed, fromSeed newSeed)

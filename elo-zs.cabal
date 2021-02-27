@@ -3,7 +3,7 @@ cabal-version:       >=1.10
 -- For further documentation, see http://haskell.org/cabal/users-guide/
 
 name:                elo-zs
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Elo ratings, a race simulator and analysis tools for the ZakStunts
   competition.
 -- description:

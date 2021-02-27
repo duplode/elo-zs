@@ -299,9 +299,8 @@ perfTopStrength' eopts pos = LS.arrM integrateRaces <<< LS.generalize basicScan
 -- probabilities.
 simStrength
     :: EloOptions
-    -> SimOptions
     -> LS.ScanM SimM (N.NonEmpty (Result PipId Rank')) (AtRace Double)
-simStrength eopts simOpts =
+simStrength eopts =
     LS.arrM runSimsForRace <<< LS.generalize basicScan
     where
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
@@ -309,7 +308,7 @@ simStrength eopts simOpts =
             -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
         . distillRatings def {provisionalCut=Nothing}
         <$> allRatings eopts
-    runSimsForRace = codistributeL . fmap @AtRace (simModelStrength simOpts)
+    runSimsForRace = codistributeL . fmap @AtRace (simModelStrength eopts)
         <=< (\ar -> liftIO $ putStrLn ("Runs for race #" ++ show (raceIx ar))
             >> return ar)
 
@@ -369,12 +368,11 @@ data SP a b = SP !a !b
 -- the order of ratings.
 ndcgSim
     :: EloOptions
-    -> SimOptions
     -> LS.ScanM SimM (N.NonEmpty (Result PipId Rank')) (AtRace Double)
     -- ^ Note that the 'AtRace' context returned here correspond to the race
     -- from which the ratings were sourced; that is, to the race before the
     -- one whose NDCG is given.
-ndcgSim eopts simOpts =
+ndcgSim eopts =
     LS.generalize (previousRatings eopts &&& returnA)
     >>> LS.generalize (arr (uncurry pickActives))
     >>> LS.arrM runSimsForRace *** LS.generalize (arr actualRanks)
@@ -382,7 +380,7 @@ ndcgSim eopts simOpts =
             fmap @AtRace (flip computeNdcg acs) exs))
     where
 
-    runSimsForRace = surroundL (fmap Map.elems . simAveragePositions simOpts)
+    runSimsForRace = surroundL (fmap Map.elems . simAveragePositions eopts)
 
     -- TODO: Deduplicate this.
     -- Using the race results to only keep previous ratings for those who took

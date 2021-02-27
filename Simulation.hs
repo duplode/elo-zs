@@ -131,7 +131,7 @@ runExperimentPip nRuns selPip pips =
 -- | Generates results of many races with an added probe and tallies how often
 -- the probe reached each position.
 runExperimentProbe
-    :: SimOptions                        -- ^ Number of runs, seed, and probe.
+    :: EloOptions                        -- ^ Number of runs, seed, and probe.
     -> [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
     -> SimM (Map Int Int)                -- ^ Count of racer-rank pairs.
 runExperimentProbe simOpts pips =
@@ -141,7 +141,7 @@ runExperimentProbe simOpts pips =
     probeModel = orbitalDistr (kFromRating (simProbeRating simOpts))
     probeId = Probe 0
 
-simModelStrength :: SimOptions -> Ratings -> SimM Double
+simModelStrength :: EloOptions -> Ratings -> SimM Double
 simModelStrength simOpts = fmap ((fromIntegral nRuns /) . fromIntegral
         . Map.foldl' (+) 0 . Map.filterWithKey (\key _ -> isTargetReached key))
     . runExperimentProbe simOpts . toSimPips []
@@ -150,7 +150,7 @@ simModelStrength simOpts = fmap ((fromIntegral nRuns /) . fromIntegral
     isTargetReached = (<= simTarget simOpts)
 
 -- | Average positions attained by racers in the simulations.
-simAveragePositions :: SimOptions -> Ratings -> SimM (Map SimPip Double)
+simAveragePositions :: EloOptions -> Ratings -> SimM (Map SimPip Double)
 simAveragePositions simOpts = fmap (fmap (/ fromIntegral nRuns)
         . Map.mapKeysWith (+) fst
         . Map.mapWithKey (\(p, i) m -> fromIntegral i * fromIntegral m))

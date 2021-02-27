@@ -27,7 +27,6 @@ module Types (
     , toAtRace
     , CoatRace(..)
     -- * Simulation engine types
-    , SimOptions(..)
     , SimM(..)
     , runSimM
     , evalSimM
@@ -105,7 +104,7 @@ data FaceOff p = FaceOff
 -- | Concrete match record type.
 type FaceOff' = FaceOff PipId
 
--- | Parameters for the core Elo engine.
+-- | Parameters for Elo and simulation engines.
 data EloOptions = EloOptions
     {   -- | Modulation (or, as Glickman puts it, attenuation) factor for rating
         -- changes. A value, such as 16, lower than the standard one for chess, 24
@@ -152,6 +151,13 @@ data EloOptions = EloOptions
         -- On why that is less of a problem than it might seem at first, see
         -- Glickman (1995), p. 36.
     , eloProvisionalFactor :: Double
+    , simProbeRating :: Double -- ^ Rating of the probe that will be used
+                               -- as a reference in the simulation-based
+                               -- strength calculations.
+    , simTarget :: Int         -- ^ Tally the top-n results attained by
+                               -- the probe in the simulations.
+    , simRuns :: Int           -- ^ How many times each race should be
+                               -- simulated.
     }
     deriving (Eq, Show)
 
@@ -172,6 +178,9 @@ instance Default EloOptions where
         , eloFullyProvisionalMatches = True
         , eloProvisionalGraduation = 5
         , eloProvisionalFactor = 2
+        , simProbeRating = 1500  -- TODO: Should this be Engine.initialRating?
+        , simTarget = 5
+        , simRuns = 10000
         }
 
 
@@ -220,26 +229,6 @@ instance Representable CoatRace where
 instance Adjunction AtRace CoatRace where
     leftAdjunct uc = \a -> CoatRace $ \ri -> uc (AtRace ri a)
     rightAdjunct cr = \(AtRace ri a) -> let (CoatRace g) = cr a in g ri
-
-
--- | Configuration options for simulation runs.
-data SimOptions = SimOptions
-    { simProbeRating :: Double -- ^ Rating of the probe that will be used
-                               -- as a reference in the strength
-                               -- calculations.
-    , simTarget :: Int         -- ^ Tally the top-n results attained by
-                               -- the probe.
-    , simRuns :: Int           -- ^ How many times each race should be
-                               -- simulated.
-    }
-    deriving (Eq, Show)
-
-instance Default SimOptions where
-    def = SimOptions
-        { simProbeRating = 1500  -- TODO: Should this be Engine.initialRating?
-        , simTarget = 5
-        , simRuns = 10000
-        }
 
 -- | A state monad for threading generator state in simulations.
 newtype SimM a = SimM { getSimM :: StateT Seed IO a }

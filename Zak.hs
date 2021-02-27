@@ -278,9 +278,9 @@ demoPerfTopStrength' eopts = testData def
         (\(AtRace ri x) -> [show ri, show x])
     & return
 
-demoSimStrength :: EloOptions -> SimOptions -> SimM (Tab.Table String String String)
-demoSimStrength eopts simOptions = testData def
-    & LS.scanM (simStrength eopts simOptions)
+demoSimStrength :: EloOptions -> SimM (Tab.Table String String String)
+demoSimStrength eopts = testData def
+    & LS.scanM (simStrength eopts)
     >>= \res -> res & sortBy (comparing (Down . extract))
     & arrangeTable
         (fmap (toZakLabel . raceIx))
@@ -310,9 +310,9 @@ demoNdcgComparison experiments =
     where
     (titles, eoptss) = N.unzip experiments
 
-demoNdcgSim :: EloOptions -> SimOptions -> SimM (Tab.Table String String String)
-demoNdcgSim eopts simOpts = testData def
-    & LS.scanM (ndcgSim eopts simOpts)
+demoNdcgSim :: EloOptions -> SimM (Tab.Table String String String)
+demoNdcgSim eopts = testData def
+    & LS.scanM (ndcgSim eopts)
     >>= \res -> res
     & drop 1  -- TODO: Figure out how to get useful results for the first race.
     & arrangeTable
@@ -321,8 +321,8 @@ demoNdcgSim eopts simOpts = testData def
          ((:[]) . show . extract)
     & return
 
-demoNdcgSimComparison :: SimOptions -> [(String, EloOptions)] -> SimM (Tab.Table String String String)
-demoNdcgSimComparison simOpts experiments =
+demoNdcgSimComparison :: [(String, EloOptions)] -> SimM (Tab.Table String String String)
+demoNdcgSimComparison experiments =
     traverse runExperiment eoptss
     >>= \res -> res & transpose
     & drop 1  -- TODO: Figure out how to get useful results for the first race.
@@ -335,6 +335,6 @@ demoNdcgSimComparison simOpts experiments =
     (titles, eoptss) = N.unzip experiments
     runExperiment eopts = do
         seed <- get
-        res <- LS.scanM (ndcgSim eopts simOpts) (testData def)
+        res <- LS.scanM (ndcgSim eopts) (testData def)
         liftIO $ restore seed
         return res
