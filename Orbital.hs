@@ -2,14 +2,15 @@
 -- |
 -- Module Orbital
 --
--- A custom probability distribution for driver laptimes.
+-- A probability distribution for driver laptimes.
 --
--- In the PDF, t = 0 is taken to be the ideal laptime in a track. The PDF
--- rises from zero at t = 0, reaches a peak and then tapers off asymptotically
--- to zero.
+-- In the PDF, t = 0 is taken to be the ideal laptime in a track.
 --
--- The name "orbital" alludes to this PDF being, modulo constant factors, the
--- radial probability density of the 1s hydrogen atom orbital.
+-- The name "orbital" alludes to this PDF originally having been, modulo
+-- constant factors, the radial probability density of the 1s hydrogen atom
+-- orbital (that is, a gamma distribution with shape parameter 3). That is no
+-- longer the case in the current implementation, though the underlying
+-- distribution is still a gamma one.
 module Orbital
     ( orbitalPDF
     , orbitalCDF
@@ -25,18 +26,16 @@ module Orbital
     ) where
 
 import qualified Data.Vector as V
-import Numeric.RootFinding
 import Numeric.Polynomial
 import Numeric.SpecFunctions (choose)
 import Statistics.Distribution
 import Statistics.Distribution.Gamma
 
-import Data.Default.Class
-
 -- | Winning probability of a racer with k = u against a racer with k = v,
--- according to the performance model.
+-- according to the performance model. Only here for reference, at least for
+-- now.
 perfWP :: Double -> Double -> Double
-perfWP u v = ratioWP 3 w
+perfWP u v = ratioWP 1 w
     where
     w = u / (u + v)
 
@@ -63,45 +62,31 @@ eloAlpha :: Double
 eloAlpha = log 10 / 400
 
 -- | Elo-based winning probability. This version takes the ratings of the two
--- players.
+-- players. Only here for reference, at least for now.
 eloWP :: Double -> Double -> Double
 eloWP ru rv = deltaWP 1 (eloAlpha*(ru-rv))
 
+-- As far as the results go, the effect of referenceRating and referenceK is
+-- superficial. Since they adjust all ratings in the same manner, changing
+-- them does not affect the overall results. Note, though, that large values
+-- of k noticeably slow down the calculations, probably by making it harder
+-- for the gamma distribution algorithms.
 referenceRating :: Double
-referenceRating = 1800
+referenceRating = 1500
 
--- Factoid: exp (1800/400) ~ 90
 referenceK :: Double
-referenceK = 18
+referenceK = 1
 
--- | k-to-rating conversion (see step 3 in the Analysis.PerfModel
--- introduction).
+-- | k-to-rating conversion.
 ratingFromK :: Double -> Double
-ratingFromK v = ru + log (1 / perfWP u v - 1) / eloAlpha
-    where
-    ru = referenceRating
-    u = referenceK
+ratingFromK u = referenceRating + log (u / referenceK) / eloAlpha
 
--- | rating-to-k conversion (see step 4 in the Analysis.PerfModel
--- introduction). Implemented through numerical root finding. The usable
--- range of inputs is between -inf and ~35000, which should suffice for
--- most practical purposes.
+-- | rating-to-k conversion.
 kFromRating :: Double -> Double
-kFromRating rv =
-    case ridders def range fCrossing of
-        NotBracketed -> error $ errPfx ++ "fCrossing is not bracketed"
-        SearchFailed -> error $ errPfx ++ "convergence failure"
-        Root t -> t
-    where
-    ru = referenceRating
-    u = referenceK
-    -- range = (0, max 10 (2 * 10**(rv/1200)))
-    range = (0, max 10 (exp ((5/4) * rv/400) / 5))
-    fCrossing v = perfWP u v - eloWP ru rv
-    errPfx = "Analysis.PerfModel.Orbital.kFromRating: "
+kFromRating r = referenceK * exp ((r - referenceRating) * eloAlpha)
 
 -- | The model distribution is a special case of the gamma distribution, with
--- k = 3 and theta = 1/k.
+-- k = 1 and theta = 1/k.
 newtype OrbitalDistribution = OrbitalDistribution
     { orbitalGamma :: GammaDistribution }
     deriving (Eq, Show, Distribution, ContDistr, ContGen, MaybeEntropy
@@ -111,7 +96,7 @@ newtype OrbitalDistribution = OrbitalDistribution
 orbitalDistr
     :: Double -- ^ k factor of the model.
     -> OrbitalDistribution
-orbitalDistr k = OrbitalDistribution (gammaDistr 3 (1/k))
+orbitalDistr k = OrbitalDistribution (gammaDistr 1 (1/k))
 
 -- | Recovers the k factor from the distribution.
 orbitalK :: OrbitalDistribution -> Double

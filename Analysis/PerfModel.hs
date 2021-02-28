@@ -2,36 +2,23 @@
 -- |
 -- Module: Analysis.PerfModel
 --
--- An experimental approach to obtaining strengths:
+-- An experimental approach to obtaining strengths, which takes Elo (or
+-- Elo-like) ratings as derived from a performance model. With a performance
+-- model in hand, we can use https://stats.stackexchange.com/a/44142 to
+-- obtain the victory probability of a 1500-rated racer given a field of
+-- racers, and use that as a measure of strength.
 --
--- 1. Assume time results for racers fit a distribution with PDF
---    p = (1/2) * k^3 * t^2 * exp (-k*t) , with t ranging from 0 to positive
---    infinity, as defined in Analysis.PerfModel.Orbital .
+-- According to the model, player performances follow a gamma distribution,
+-- with the outcome 0 corresponding to an ideal performance. The shape
+-- parameter of the distribution is fixed, while the rate parameter varies
+-- across players. A higher rate parameter amounts to results that are both
+-- more consistent and closer to the ideal. (Pinning both mean and standard
+-- deviation of player performance to a single parameter is the main
+-- simplifying assumption of the model.)
 --
--- 2. Calculate victory probabilities in a match from each racer's k
---     parameter.
---
--- 3. For given values of k and a fixed opponent, assume victory
---    probabilities from the Elo ratings and from the distribution coincide
---    and accordingly calculate the rating that corresponds to k. (The fixed
---    opponent is taken to have 1800 rating and an empirically chosen value of
---    k).
---
--- 4. Use interpolation to invert the function from the previous step, thus
---     obtaing a way of finding the k that corresponds to a rating.
---
--- 5. Use https://stats.stackexchange.com/a/44142 to obtain the victory
---    probability of a 1500-rated racer given a field of racers, and use that
---    as a measure of strength.
---
--- In the PDF, t = 0 is taken to be the ideal laptime in a track. The PDF
--- rises from zero at t = 0, reaches a peak and then tapers off asymptotically
--- towards zero. Higher k values mean an earlier peak, and thus laptimes
--- typically closer to the ideal, and also a narrower distribution, and thus
--- more consistent laptimes. It is a very simple model, but one that makes at
--- least some sense in the context of its application and is quite tractable
--- (notably, both the CDF and the probabilities in step 2 can be worked out
--- analytically).
+-- Note that the performance model winning probabilities for pairs of players
+-- agree exactly with the conventional Elo formula if the shape parameter of
+-- the gamma distribution is taken to be 1.
 module Analysis.PerfModel
     ( perfModelStrength
     , perfModelTopStrength
