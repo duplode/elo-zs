@@ -12,9 +12,7 @@
 -- longer the case in the current implementation, though the underlying
 -- distribution is still a gamma one.
 module Orbital
-    ( orbitalPDF
-    , orbitalCDF
-    , perfWP
+    ( perfWP
     , eloAlpha
     , deltaWP
     , eloWP
@@ -77,7 +75,7 @@ referenceRating = 1500
 referenceK :: Double
 referenceK = 1
 
--- | k-to-rating conversion.
+-- | k-to-rating conversion. Only for reference, at least for now.
 ratingFromK :: Double -> Double
 ratingFromK u = referenceRating + log (u / referenceK) / eloAlpha
 
@@ -86,7 +84,7 @@ kFromRating :: Double -> Double
 kFromRating r = referenceK * exp ((r - referenceRating) * eloAlpha)
 
 -- | The model distribution is a special case of the gamma distribution, with
--- k = 1 and theta = 1/k.
+-- theta = 1/k.
 newtype OrbitalDistribution = OrbitalDistribution
     { orbitalGamma :: GammaDistribution }
     deriving (Eq, Show, Distribution, ContDistr, ContGen, MaybeEntropy
@@ -94,18 +92,14 @@ newtype OrbitalDistribution = OrbitalDistribution
 
 -- | Sets up the model distribution given a k factor.
 orbitalDistr
-    :: Double -- ^ k factor of the model.
+    :: Int    -- ^ Shape parameter to be used.
+    -> Double -- ^ k factor of the model.
     -> OrbitalDistribution
-orbitalDistr k = OrbitalDistribution (gammaDistr 1 (1/k))
+orbitalDistr gsh k = OrbitalDistribution (gammaDistr (fromIntegral gsh) (1/k))
 
 -- | Recovers the k factor from the distribution.
 orbitalK :: OrbitalDistribution -> Double
 orbitalK distr = 1 / gdScale (orbitalGamma distr)
 
--- | PDF of the performance model.
-orbitalPDF :: Double -> Double -> Double
-orbitalPDF k t = density (orbitalDistr k) t
-
--- | CDF of the performance model.
-orbitalCDF :: Double -> Double -> Double
-orbitalCDF k t = cumulative (orbitalDistr k) t
+-- | Recovers the shape parameter from the distribution.
+orbitalShape distr = gdShape (orbitalGamma distr)

@@ -77,13 +77,14 @@ toFaceOffs fRemote xs = concat . NE.toList
 -- | Difference between expected and actual scores for a match. Positive if
 -- the score was higher than what was expected.
 scoreDiscrepancy
-    :: Double  -- ^ Difference between the ratings before the match.
+    :: Int     -- ^ Gamma shape.
+    -> Double  -- ^ Difference between the ratings before the match.
     -> WDL     -- ^ Match outcome.
     -> Double  -- ^ Rating change.
-scoreDiscrepancy gap otc = wdlScore otc - expectedScore
+scoreDiscrepancy gsh gap otc = wdlScore otc - expectedScore
     where
     -- | Expected score, given the rating gap.
-    expectedScore = deltaWP 1 (eloAlpha * gap)
+    expectedScore = deltaWP gsh (eloAlpha * gap)
 
 -- | The core rating update engine.
 updateRatings
@@ -161,7 +162,7 @@ toDelta eopts rtgs xy =
         w = maybe 1
             (\n -> witch (n/pi) (1/2) 0 (remoteness xy))
             (eloRemotenessModulation eopts)
-        baseDelta = w * scoreDiscrepancy gap (outcome xy)
+        baseDelta = w * scoreDiscrepancy (eloGammaShape eopts) gap (outcome xy)
     in ((player xy, kx * baseDelta), (opponent xy, -ky * baseDelta))
 
 -- | The modulation factors to use, accounting for the players possibly

@@ -47,10 +47,11 @@ data SimEntry = SimEntry
 
 -- | Prepare ratings from the engine to feed the simulation.
 toSimPips
-    :: [(Int, Double)]                  -- ^ Identifications and ratings of the probes.
+    :: Int                              -- ^ Gamma shape parameter.
+    -> [(Int, Double)]                  -- ^ Identifications and ratings of the probes.
     -> Ratings                          -- ^ Ratings map from the engine.
     -> [(SimPip, OrbitalDistribution)]  -- ^ Identifications and performance models.
-toSimPips probes rtgs = map (second (orbitalDistr . kFromRating))
+toSimPips gsh probes rtgs = map (second (orbitalDistr gsh . kFromRating))
     $ map (first Probe) probes
     ++ map (bimap SimPip rating) (Map.assocs rtgs)
 
@@ -134,32 +135,32 @@ runExperimentProbe
     :: EloOptions                        -- ^ Number of runs, seed, and probe.
     -> [(SimPip, OrbitalDistribution)]   -- ^ Identifications and performance models.
     -> SimM (Map Int Int)                -- ^ Count of racer-rank pairs.
-runExperimentProbe simOpts pips =
+runExperimentProbe eopts pips =
     runExperimentPip nRuns probeId ((probeId, probeModel) : pips)
     where
-    nRuns = simRuns simOpts
-    probeModel = orbitalDistr (kFromRating (simProbeRating simOpts))
+    nRuns = simRuns eopts
+    probeModel = orbitalDistr (eloGammaShape eopts) (kFromRating (simProbeRating eopts))
     probeId = Probe 0
 
 simModelStrength :: EloOptions -> Ratings -> SimM Double
-simModelStrength simOpts = fmap ((fromIntegral nRuns /) . fromIntegral
+simModelStrength eopts = fmap ((fromIntegral nRuns /) . fromIntegral
         . Map.foldl' (+) 0 . Map.filterWithKey (\key _ -> isTargetReached key))
-    . runExperimentProbe simOpts . toSimPips []
+    . runExperimentProbe eopts . toSimPips (eloGammaShape eopts) []
     where
-    nRuns = simRuns simOpts
-    isTargetReached = (<= simTarget simOpts)
+    nRuns = simRuns eopts
+    isTargetReached = (<= simTarget eopts)
 
 -- | Average positions attained by racers in the simulations.
 simAveragePositions :: EloOptions -> Ratings -> SimM (Map SimPip Double)
-simAveragePositions simOpts = fmap (fmap (/ fromIntegral nRuns)
+simAveragePositions eopts = fmap (fmap (/ fromIntegral nRuns)
         . Map.mapKeysWith (+) fst
         . Map.mapWithKey (\(p, i) m -> fromIntegral i * fromIntegral m))
-    . runExperimentFull nRuns . toSimPips []
+    . runExperimentFull nRuns . toSimPips (eloGammaShape eopts) []
     where
-    nRuns = simRuns simOpts
+    nRuns = simRuns eopts
 
 
-example = bimap SimPip orbitalDistr
+example = bimap SimPip (orbitalDistr 3)
     <$> [("HAM", 500), ("BOT", 286), ("VER", 430), ("VET", 380), ("STR", 240)]
 
 

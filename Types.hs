@@ -151,6 +151,10 @@ data EloOptions = EloOptions
         -- On why that is less of a problem than it might seem at first, see
         -- Glickman (1995), p. 36.
     , eloProvisionalFactor :: Double
+        -- Shape parameter to be used for the gamma distribution that underlies
+        -- both the Elo and the simulation engines. A value of 1 corresponds
+        -- exactly to the conventional Elo algorithm.
+    , eloGammaShape :: Int
     , simProbeRating :: Double -- ^ Rating of the probe that will be used
                                -- as a reference in the simulation-based
                                -- strength calculations.
@@ -178,6 +182,7 @@ instance Default EloOptions where
         , eloFullyProvisionalMatches = True
         , eloProvisionalGraduation = 5
         , eloProvisionalFactor = 2
+        , eloGammaShape = 1
         , simProbeRating = 1500  -- TODO: Should this be Engine.initialRating?
         , simTarget = 5
         , simRuns = 10000

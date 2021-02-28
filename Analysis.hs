@@ -255,7 +255,7 @@ perfStrength
     :: EloOptions
     -> LS.Scan (N.NonEmpty (Result PipId Rank')) (AtRace Double)
 perfStrength eopts = id
-    . fmap @AtRace (perfModelStrength . map rating . Map.elems)
+    . fmap @AtRace (perfModelStrength (eloGammaShape eopts) . map rating . Map.elems)
     . extend (\(AtRace ri rtgs)
         -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
     . distillRatings def {provisionalCut=Nothing}
@@ -267,7 +267,7 @@ perfTopStrength
     :: EloOptions
     -> LS.Scan (N.NonEmpty (Result PipId Rank')) (AtRace Double)
 perfTopStrength eopts = id
-    . fmap @AtRace (perfModelTopStrength 5 . map rating . Map.elems)
+    . fmap @AtRace (perfModelTopStrength (eloGammaShape eopts) 5 . map rating . Map.elems)
     . extend (\(AtRace ri rtgs)
         -> Map.filter (isCurrentlyActive . AtRace ri) rtgs)
     . distillRatings def {provisionalCut=Nothing}
@@ -287,7 +287,8 @@ perfTopStrength' eopts pos = LS.arrM integrateRaces <<< LS.generalize basicScan
         <$> allRatings eopts
     integrateRaces ar = do
         -- The top-N cutoff should be made properly configurable.
-        let ar' = fmap @AtRace (perfModelTopStrength pos . map rating . Map.elems) ar
+        let ar' = fmap @AtRace
+                (perfModelTopStrength (eloGammaShape eopts) pos . map rating . Map.elems) ar
         liftIO $ putStrLn ("Done race #" ++ show (raceIx ar') ++ " : " ++ show (extract ar'))
         return ar'
     isCurrentlyActive (AtRace ri rtg) = lastRace rtg == ri
