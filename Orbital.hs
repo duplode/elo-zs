@@ -2,19 +2,20 @@
 -- |
 -- Module Orbital
 --
--- A probability distribution for driver laptimes.
+-- A probability distribution for driver laptimes, initialised from
+-- Elo-like ratings.
 --
 -- In the PDF, t = 0 is taken to be the ideal laptime in a track.
 --
 -- The name "orbital" alludes to this PDF originally having been, modulo
 -- constant factors, the radial probability density of the 1s hydrogen atom
--- orbital (that is, a gamma distribution with shape parameter 3). That is no
--- longer the case in the current implementation, though the underlying
--- distribution is still a gamma one.
+-- orbital. The corresponding distribution can be obtained by setting the
+-- gamma shape parameter to 3.
 module Orbital
     ( perfWP
     , deltaWP
     , eloWP
+    , initialRating
     , kFromRating
     , ratingFromK
     , OrbitalDistribution
@@ -44,6 +45,12 @@ ratioWP gsh = \w -> w^gsh * evaluatePolynomial w coeffs
     coeffs = V.generate gsh $ \i ->
         (-1)^i * choose gsh i * choose (2*gsh-1) (gsh-1)
             * fromIntegral (gsh-i) / fromIntegral (gsh+i)
+
+-- | Initial rating for new racers. Defined as a constant here for
+-- expediteness, taking into account that making it configurable isn't as
+-- essential as it is making other engine parameters configurable.
+initialRating :: Double
+initialRating = 1500
 
 -- | The base Elo exponent. In essence, a logistic growth factor for expected
 -- scores/winning probabilities. The denominator used here, 400, is standard
@@ -77,7 +84,7 @@ deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(- eloFactor gsh * d)))
 -- Note that 1 / (1 + exp(-x)) = (1 + tanh (x/2)) / 2
 
 -- | Elo-based winning probability. This version takes the ratings of the two
--- players. Only here for reference, at least for now.
+-- racers. Only here for reference, at least for now.
 eloWP :: Double -> Double -> Double
 eloWP ru rv = deltaWP 1 (ru-rv)
 
@@ -87,7 +94,7 @@ eloWP ru rv = deltaWP 1 (ru-rv)
 -- of k noticeably slow down the calculations, probably by making it harder
 -- for the gamma distribution algorithms.
 referenceRating :: Double
-referenceRating = 1500
+referenceRating = initialRating
 
 referenceK :: Double
 referenceK = 1

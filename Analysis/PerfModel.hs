@@ -25,8 +25,7 @@ module Analysis.PerfModel
     , example
     ) where
 
-import Orbital (orbitalDistr)
-import Engine (initialRating)
+import Orbital (orbitalDistr, initialRating)
 import qualified Util.Combinations as Util
 
 import qualified Numeric.Integration.TanhSinh as Integration

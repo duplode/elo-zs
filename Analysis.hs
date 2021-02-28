@@ -3,6 +3,7 @@
 module Analysis where
 
 import Types
+import Orbital (initialRating)
 import Engine
 import Tidying
 import Util.Lone

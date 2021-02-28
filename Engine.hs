@@ -12,12 +12,11 @@ module Engine
     ( finalRatings
     , allRatings
     , previousRatings
-    , initialRating
     ) where
 
 import Types
 import Weighing (witch)
-import Orbital (deltaWP)
+import Orbital (deltaWP, initialRating)
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
@@ -29,12 +28,6 @@ import Control.Comonad
 import qualified Control.Foldl as L
 import qualified Control.Scanl as LS
 import Data.List
-
--- | Initial rating for new players. Defined as a constant here for
--- expediteness, taking into account that making it configurable isn't as
--- essential as it is making other engine parameters configurable.
-initialRating :: Double
-initialRating = 1500
 
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
