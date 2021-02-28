@@ -52,10 +52,28 @@ ratioWP gsh = \w -> w^gsh * evaluatePolynomial w coeffs
 eloAlpha :: Double
 eloAlpha = log 10 / 400
 
+-- | Adjusts the k values obtained from ratings depending on the gamma shape so
+-- that the same rating gaps correspond to approximately the same winning
+-- probabilities.
+--
+-- The peculiar formula used here was obtained emprically, by
+-- verfiying which factors minimised the difference between Elo and gamma model
+-- winning probabilities for a range of shapes, setting up a log-log chart,
+-- fitting a quadratic equation to it and picking nearby pretty fractions for
+-- the coefficients. Further analysis of the gamma winning probabilities may
+-- eventually result in a less arbitrary formula.
+eloGammaCorrection :: Double -> Double
+eloGammaCorrection gsh = gsh**(-16/25) * exp ((3*pi^2/1000)*log gsh^2)
+
+-- | Elo conversion factor. Amounts to eloAlpha for shape 1, in which case the
+-- gamma model coincides with the conventional Elo system.
+eloFactor :: Int -> Double
+eloFactor gsh = eloGammaCorrection (fromIntegral gsh) * eloAlpha
+
 -- | Winning probabilities for (scaled) rating differences. Ratings are
 -- essentially logarithms of the gamma distribution rate parameters.
 deltaWP :: Int -> Double -> Double
-deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(-eloAlpha*d)))
+deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(- eloFactor gsh * d)))
 -- Note that 1 / (1 + exp(-x)) = (1 + tanh (x/2)) / 2
 
 -- | Elo-based winning probability. This version takes the ratings of the two
@@ -75,12 +93,12 @@ referenceK :: Double
 referenceK = 1
 
 -- | k-to-rating conversion. Only for reference, at least for now.
-ratingFromK :: Double -> Double
-ratingFromK u = referenceRating + log (u / referenceK) / eloAlpha
+ratingFromK :: Int -> Double -> Double
+ratingFromK gsh u = referenceRating + log (u / referenceK) / eloFactor gsh
 
 -- | rating-to-k conversion.
-kFromRating :: Double -> Double
-kFromRating r = referenceK * exp ((r - referenceRating) * eloAlpha)
+kFromRating :: Int -> Double -> Double
+kFromRating gsh r = referenceK * exp ((r - referenceRating) * eloFactor gsh)
 
 -- | The model distribution is a special case of the gamma distribution, with
 -- theta = 1/k.
@@ -95,7 +113,7 @@ orbitalDistr
     -> Double -- ^ Elo-like rating.
     -> OrbitalDistribution
 orbitalDistr gsh r = OrbitalDistribution
-    (gammaDistr (fromIntegral gsh) (1 / kFromRating r))
+    (gammaDistr (fromIntegral gsh) (1 / kFromRating gsh r))
 
 -- | Recovers the k factor from the distribution.
 orbitalK :: OrbitalDistribution -> Double

@@ -153,7 +153,8 @@ data EloOptions = EloOptions
     , eloProvisionalFactor :: Double
         -- Shape parameter to be used for the gamma distribution that underlies
         -- both the Elo and the simulation engines. A value of 1 corresponds
-        -- exactly to the conventional Elo algorithm.
+        -- exactly to the conventional Elo algorithm. Workable values range
+        -- from 1 to 20.
     , eloGammaShape :: Int
     , simProbeRating :: Double -- ^ Rating of the probe that will be used
                                -- as a reference in the simulation-based
