@@ -69,13 +69,26 @@ eloAlpha = log 10 / 400
 -- fitting a quadratic equation to it and picking nearby pretty fractions for
 -- the coefficients. Further analysis of the gamma winning probabilities may
 -- eventually result in a less arbitrary formula.
-eloGammaCorrection :: Double -> Double
-eloGammaCorrection gsh = gsh**(-16/25) * exp ((3*pi^2/1000)*log gsh^2)
+eloGammaCorrection :: Int -> Double
+eloGammaCorrection gsh = gsh'**(-16/25) * exp ((3*pi^2/1000)*log gsh'^2)
+    where
+    gsh' = fromIntegral gsh
+
+-- | An alternative k value adjustment, which matches the derivative of
+-- @deltaWP gsh@ to that of @deltaWP 1@ at zero. Compared to
+-- 'eloGammaCorrection', this adjustment is more accurate for smaller rating
+-- gaps (up to about 240, while 'eloGammaCorrection' is most accurate around
+-- 400). It also produces winning proabilities that are always slightly
+-- above the conventional Elo ones (whereas with 'eloGammaCorrection' the
+-- curves cross at points other than zero).
+eloGammaCorrectionAlt :: Int -> Double
+eloGammaCorrectionAlt gsh =
+    4^(gsh-1) / (fromIntegral gsh * choose (2*gsh-1) (gsh-1))
 
 -- | Elo conversion factor. Amounts to eloAlpha for shape 1, in which case the
 -- gamma model coincides with the conventional Elo system.
 eloFactor :: Int -> Double
-eloFactor gsh = eloGammaCorrection (fromIntegral gsh) * eloAlpha
+eloFactor gsh = eloGammaCorrection gsh * eloAlpha
 
 -- | Winning probabilities for (scaled) rating differences. Ratings are
 -- essentially logarithms of the gamma distribution rate parameters.
