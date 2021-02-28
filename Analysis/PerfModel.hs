@@ -27,7 +27,6 @@ module Analysis.PerfModel
 
 import Orbital
 import Engine (initialRating)
---import qualified Analysis.PerfModel.Reference.Precompute as R
 import qualified Util.Combinations as Util
 
 import qualified Numeric.Integration.TanhSinh as Integration
@@ -124,7 +123,6 @@ example = [2200,2100,1900,1870,1850,1600]
 --
 -- >$> :set +s
 --
--- >$> perfModelTopStrength 5 example - R.perfModelTopStrength 5 example
 
 -- >$> perfModelTopStrength 5 example
 
