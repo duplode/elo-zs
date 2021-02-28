@@ -25,7 +25,7 @@ module Analysis.PerfModel
     , example
     ) where
 
-import Orbital
+import Orbital (orbitalDistr)
 import Engine (initialRating)
 import qualified Util.Combinations as Util
 
@@ -47,10 +47,10 @@ raceWinPDF
     -> Double    -- ^ Rating of the racer.
     -> Double    -- ^ Performance.
     -> Double
-raceWinPDF gsh rs r t = density (orbitalDistr gsh (kFromRating r)) t
+raceWinPDF gsh rs r t = density (orbitalDistr gsh r) t
     * L.fold (lmap winVersus L.product) rs
     where
-    winVersus r' = 1 - cumulative (orbitalDistr gsh (kFromRating r')) t
+    winVersus r' = 1 - cumulative (orbitalDistr gsh r') t
 
 -- | Integrating the race win PDF gives the likelihood of victory, whose
 -- reciprocal we use as a strength metric.
@@ -75,12 +75,12 @@ positionPDF
     -> Double    -- ^ Rating of the racer.
     -> Double    -- ^ Performance.
     -> Double
-positionPDF gsh pos rs r t = density (orbitalDistr gsh (kFromRating r)) t
+positionPDF gsh pos rs r t = density (orbitalDistr gsh r) t
     * L.fold L.sum (L.fold L.product . toFactors <$> combos)
     where
     n = length rs
     combos = Util.combinations n (pos-1) [1..n]
-    loseVersus r' = cumulative (orbitalDistr gsh (kFromRating r')) t
+    loseVersus r' = cumulative (orbitalDistr gsh r') t
     -- winVersus r' = 1 - loseVersus r'
     lvs = IntMap.fromList (zip [1..n] (loseVersus <$> rs))
     wvs = (1 -) <$> lvs
@@ -114,10 +114,10 @@ topPDF gsh pos rs r t = (probeDensity *) . L.fold L.sum $
     L.fold L.sum . partials <$> validPositions
     where
     validPositions = zipWith const [1..pos] (r : rs)
-    loseVersus r' = cumulative (orbitalDistr gsh (kFromRating r')) t
+    loseVersus r' = cumulative (orbitalDistr gsh r') t
     lvs = IntMap.fromList (zip [1..] (loseVersus <$> rs))
     wvs = (1 -) <$> lvs
-    probeDensity = density (orbitalDistr gsh (kFromRating r)) t
+    probeDensity = density (orbitalDistr gsh r) t
     partials = Util.processCombsInt alg (length rs) . subtract 1
     alg = \case
         Util.LeafF Nothing -> 0

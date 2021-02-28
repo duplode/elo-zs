@@ -13,7 +13,6 @@
 -- distribution is still a gamma one.
 module Orbital
     ( perfWP
-    , eloAlpha
     , deltaWP
     , eloWP
     , kFromRating
@@ -46,12 +45,6 @@ ratioWP gsh = \w -> w^gsh * evaluatePolynomial w coeffs
         (-1)^i * choose gsh i * choose (2*gsh-1) (gsh-1)
             * fromIntegral (gsh-i) / fromIntegral (gsh+i)
 
--- | Winning probabilities for (unscaled) rating differences. Ratings are
--- essentially logarithms of the gamma distribution rate parameters.
-deltaWP :: Int -> Double -> Double
-deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(-d)))
--- Note that 1 / (1 + exp(-d)) = (1 + tanh (d/2)) / 2
-
 -- | The base Elo exponent. In essence, a logistic growth factor for expected
 -- scores/winning probabilities. The denominator used here, 400, is standard
 -- for chess rating computations. Using it, a 0.6 expected score corresponds
@@ -59,10 +52,16 @@ deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(-d)))
 eloAlpha :: Double
 eloAlpha = log 10 / 400
 
+-- | Winning probabilities for (scaled) rating differences. Ratings are
+-- essentially logarithms of the gamma distribution rate parameters.
+deltaWP :: Int -> Double -> Double
+deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(-eloAlpha*d)))
+-- Note that 1 / (1 + exp(-x)) = (1 + tanh (x/2)) / 2
+
 -- | Elo-based winning probability. This version takes the ratings of the two
 -- players. Only here for reference, at least for now.
 eloWP :: Double -> Double -> Double
-eloWP ru rv = deltaWP 1 (eloAlpha*(ru-rv))
+eloWP ru rv = deltaWP 1 (ru-rv)
 
 -- As far as the results go, the effect of referenceRating and referenceK is
 -- superficial. Since they adjust all ratings in the same manner, changing
@@ -90,16 +89,18 @@ newtype OrbitalDistribution = OrbitalDistribution
     deriving (Eq, Show, Distribution, ContDistr, ContGen, MaybeEntropy
         , Variance, MaybeVariance, Mean, MaybeMean)
 
--- | Sets up the model distribution given a k factor.
+-- | Sets up the model distribution given a rating.
 orbitalDistr
     :: Int    -- ^ Shape parameter to be used.
-    -> Double -- ^ k factor of the model.
+    -> Double -- ^ Elo-like rating.
     -> OrbitalDistribution
-orbitalDistr gsh k = OrbitalDistribution (gammaDistr (fromIntegral gsh) (1/k))
+orbitalDistr gsh r = OrbitalDistribution
+    (gammaDistr (fromIntegral gsh) (1 / kFromRating r))
 
 -- | Recovers the k factor from the distribution.
 orbitalK :: OrbitalDistribution -> Double
 orbitalK distr = 1 / gdScale (orbitalGamma distr)
 
 -- | Recovers the shape parameter from the distribution.
+orbitalShape :: OrbitalDistribution -> Double
 orbitalShape distr = gdShape (orbitalGamma distr)

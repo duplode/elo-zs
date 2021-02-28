@@ -16,7 +16,7 @@ module Simulation
     ) where
 
 import Types
-import Orbital
+import Orbital (orbitalDistr, OrbitalDistribution)
 import Util.Lone (surroundL)
 
 import System.Random.MWC
@@ -51,7 +51,7 @@ toSimPips
     -> [(Int, Double)]                  -- ^ Identifications and ratings of the probes.
     -> Ratings                          -- ^ Ratings map from the engine.
     -> [(SimPip, OrbitalDistribution)]  -- ^ Identifications and performance models.
-toSimPips gsh probes rtgs = map (second (orbitalDistr gsh . kFromRating))
+toSimPips gsh probes rtgs = map (second (orbitalDistr gsh))
     $ map (first Probe) probes
     ++ map (bimap SimPip rating) (Map.assocs rtgs)
 
@@ -139,7 +139,7 @@ runExperimentProbe eopts pips =
     runExperimentPip nRuns probeId ((probeId, probeModel) : pips)
     where
     nRuns = simRuns eopts
-    probeModel = orbitalDistr (eloGammaShape eopts) (kFromRating (simProbeRating eopts))
+    probeModel = orbitalDistr (eloGammaShape eopts) (simProbeRating eopts)
     probeId = Probe 0
 
 simModelStrength :: EloOptions -> Ratings -> SimM Double

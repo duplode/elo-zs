@@ -17,7 +17,7 @@ module Engine
 
 import Types
 import Weighing (witch)
-import Orbital (deltaWP, eloAlpha)
+import Orbital (deltaWP)
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
@@ -84,7 +84,7 @@ scoreDiscrepancy
 scoreDiscrepancy gsh gap otc = wdlScore otc - expectedScore
     where
     -- | Expected score, given the rating gap.
-    expectedScore = deltaWP gsh (eloAlpha * gap)
+    expectedScore = deltaWP gsh gap
 
 -- | The core rating update engine.
 updateRatings
