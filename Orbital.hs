@@ -63,27 +63,24 @@ eloAlpha = log 10 / 400
 -- that the same rating gaps correspond to approximately the same winning
 -- probabilities.
 --
--- The peculiar formula used here was obtained emprically, by
--- verfiying which factors minimised the difference between Elo and gamma model
--- winning probabilities for a range of shapes, setting up a log-log chart,
--- fitting a quadratic equation to it and picking nearby pretty fractions for
--- the coefficients. Further analysis of the gamma winning probabilities may
--- eventually result in a less arbitrary formula.
+-- The formula used here is made of two factors:
+--
+-- - A base correction, which on its own would adjust the derivative of
+--   @deltaWP gsh@ to match that of @deltaWP 1@ at zero. This factor, which is
+--   the best adjustment for rating gaps close to zero, slightly increases
+--   the absolute excess winning probabilities over the entire range of gaps.
+--
+-- - An additional correction, which reduces the aforementioned bias. Its value
+--   is chosen to (approximately) minimise the sum of the squares of the
+--   differences between @ratioWP gsh@ and @ratioWP 1@ over the entire range
+--   of ratios.
 eloGammaCorrection :: Int -> Double
-eloGammaCorrection gsh = gsh'**(-16/25) * exp ((3*pi^2/1000)*log gsh'^2)
+eloGammaCorrection gsh = extraAdjustment * baseCorrection
     where
     gsh' = fromIntegral gsh
-
--- | An alternative k value adjustment, which matches the derivative of
--- @deltaWP gsh@ to that of @deltaWP 1@ at zero. Compared to
--- 'eloGammaCorrection', this adjustment is more accurate for smaller rating
--- gaps (up to about 240, while 'eloGammaCorrection' is most accurate around
--- 400). It also produces winning proabilities that are always slightly
--- above the conventional Elo ones (whereas with 'eloGammaCorrection' the
--- curves cross at points other than zero).
-eloGammaCorrectionAlt :: Int -> Double
-eloGammaCorrectionAlt gsh =
-    4^(gsh-1) / (fromIntegral gsh * choose (2*gsh-1) (gsh-1))
+    baseCorrection = 4^(gsh-1) / (gsh' * choose (2*gsh-1) (gsh-1))
+    fittedConstant = (2*sqrt 29 - 3)*pi
+    extraAdjustment = 1 - (gsh'-1) / (gsh' * fittedConstant)
 
 -- | Elo conversion factor. Amounts to eloAlpha for shape 1, in which case the
 -- gamma model coincides with the conventional Elo system.
