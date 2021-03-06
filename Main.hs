@@ -39,5 +39,5 @@ eoptsSmoothTest = def
     { eloModulation = 18
     , eloProvisionalGraduation = 12
     , eloProvisionalStrategy = SmoothFactorProvisional
-    , eloProvisionalFactor = 2.034
+    , eloProvisionalFactor = 1.5
     }

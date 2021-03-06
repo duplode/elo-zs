@@ -28,6 +28,8 @@ import Control.Comonad
 import qualified Control.Foldl as L
 import qualified Control.Scanl as LS
 import Data.List
+import Data.Default.Class
+import Numeric.RootFinding
 
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
@@ -255,50 +257,32 @@ provisionalDecay
     :: EloOptions
     -> Int  -- ^ Number of previous entries.
     -> Double
-provisionalDecay eopts nEntries = fctr ** (1 - x / grad)
+provisionalDecay eopts nEntries = fctr ^ (grad - nEntries)
     where
-    x = fromIntegral nEntries
-    grad = fromIntegral (eloProvisionalGraduation eopts)
-    fctr = eloProvisionalFactor eopts
--- Note that 'provisionalDecay' uses the supplied factor for the first event
--- only. Given the exponential decay, that means the same factor will have
--- less of an effect with the smooth strategy than with the fixed one. Here
--- are some correspondences of factors:
---
--- - Graduation after 5 events:
---
---   - 1.5 smooth = 1.284 fixed
---   - 2.0 smooth = 1.545 fixed
---   - 2.5 smooth = 1.792 fixed
---   - 3.0 smooth = 2.028 fixed
---   - 3.5 smooth = 2.256 fixed
---   - 4.0 smooth = 2.478 fixed
---
---   - 1.5 fixed ≈ 1.912 smooth
---   - 2.0 fixed ≈ 2.941 smooth
---   - 2.5 fixed ≈ 4.051 smooth
---   - 3.0 fixed ≈ 5.223 smooth
---   - 3.5 fixed ≈ 6.444 smooth
---   - 4.0 fixed ≈ 7.706 smooth
---
--- - Graduation after 12 events:
---
---   - 1.5 smooth ≈ 1.254 fixed
---   - 2.0 smooth ≈ 1.485 fixed
---   - 2.5 smooth ≈ 1.700 fixed
---   - 3.0 smooth ≈ 1.905 fixed
---   - 3.5 smooth ≈ 2.102 fixed
---   - 4.0 smooth ≈ 2.291 fixed
---
---   - 1.5 fixed ≈ 2.034 smooth
---   - 2.0 fixed ≈ 3.239 smooth
---   - 2.5 fixed ≈ 4.566 smooth
---   - 3.0 fixed ≈ 5.989 smooth
---   - 3.5 fixed ≈ 7.487 smooth
---   - 4.0 fixed ≈ 9.049 smooth
---
--- The smooth/fixed effect ratio tends to log fctr/(fctr - 1) as the number
--- of events grows and the integration steps get smoother, though the
--- convergence is rather slow. Demo code for checking the ratios follows:
---
--- ($ 5) $ \n -> (/ fromIntegral n) . sum $ provisionalDecay def { eloProvisionalStrategy = SmoothFactorProvisional, eloProvisionalFactor = 1.5 } <$> [0..n-1]
+    grad = eloProvisionalGraduation eopts
+    fctr = lastProvisionalFactor grad (eloProvisionalFactor eopts)
+
+-- | Obtains the smooth modulation provisional factor to use at the last event
+-- before graduation.
+lastProvisionalFactor
+    :: Int     -- ^ Provisional window/events until graduation.
+    -> Double  -- ^ Average factor over the window.
+    -> Double
+lastProvisionalFactor grad avgFctr =
+    case ridders def (lowerBound, upperBound) fCrossing of
+        NotBracketed -> error "Engine.lastProvisionalFactor: fCrossing not bracketed"
+        SearchFailed -> error "Engine.lastProvisionalactor: root search failure"
+        Root x -> x
+    where
+    grad' = fromIntegral grad
+    fctrSum = grad' * avgFctr
+    fCrossing x = x^(grad + 1) - (fctrSum + 1)*x + fctrSum
+    lowerBound = ((fctrSum + 1) / (grad' + 1))**(1/grad')
+    upperBound = avgFctr^2
+-- In the implementation above, fCrossing originates from the equation
+-- a * g = q * (q^g - 1) / (q - 1)
+-- with a = avgFctr, g = grad and q = lastProvisionalFactor grad avgFctr.
+-- lowerBound is the local minimum of fCrossing near the root.
+-- upperBound arises from using sqrt q as an underestimate of (q - 1)/log q,
+-- which is itself a lower bound for the average factor, and its limit as g
+-- goes to infinity.

@@ -134,8 +134,8 @@ data EloOptions = EloOptions
         -- provisional after the fifth event, while 0 disables provisional
         -- ratings.
     , eloProvisionalGraduation :: Int
-        -- | Correction factor for the modulation in matches involving one
-        -- player with a provisional rating.
+        -- | Average correction factor for the modulation in matches involving
+        -- one player with a provisional rating.
         --
         -- With values above 1, provisionally rated players will have a higher
         -- modulation factor, so that their ratings converge more quickly, and
@@ -143,8 +143,9 @@ data EloOptions = EloOptions
         -- lower modulation factor, so that their ratings are less affected by
         -- matches against players with uncertain ratings.
         --
-        -- Note that the precise way in which the factor affets modulation
-        -- depends on the choice for 'eloProvisionalStrategy'.
+        -- The value specified here is the average factor over the whole
+        -- provisional window. The specific values at each point of the window
+        -- depend on the choice for 'eloProvisionalStrategy'.
         --
         -- Using different modulation factors in a single match means a match
         -- can cause a net change on the accumulated rating of the player pool.
