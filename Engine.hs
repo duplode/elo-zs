@@ -164,8 +164,8 @@ modulationFactors
     -> Maybe PipData
     -> (Double, Double)
 modulationFactors eopts px py = case eloProvisionalStrategy eopts of
-    NoProvisional -> (kBase, kBase)
-    strat -> provisionalFactors strat px py
+    Nothing -> (kBase, kBase)
+    Just strat -> provisionalFactors strat px py
     where
     -- Note that both kHi and kLo here use the factor from whoever is the
     -- provisionally rated player.
@@ -182,14 +182,12 @@ modulationFactors eopts px py = case eloProvisionalStrategy eopts of
     kBase = eloModulation eopts
 
     kHi strat pz = case strat of
-        FixedFactorProvisional -> kBase * eloProvisionalFactor eopts
-        SmoothFactorProvisional -> kBase * provisionalDecay eopts (previousEntries pz)
-        NoProvisional -> kBase
+        FixedProvisional -> kBase * eloProvisionalFactor eopts
+        SmoothProvisional -> kBase * provisionalDecay eopts (previousEntries pz)
 
     kLo strat pz = case strat of
-        FixedFactorProvisional -> kBase / eloProvisionalFactor eopts
-        SmoothFactorProvisional -> kBase / provisionalDecay eopts (previousEntries pz)
-        NoProvisional -> kBase
+        FixedProvisional -> kBase / eloProvisionalFactor eopts
+        SmoothProvisional -> kBase / provisionalDecay eopts (previousEntries pz)
 
     previousEntries :: Maybe PipData -> Int
     previousEntries = maybe 0 entries

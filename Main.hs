@@ -38,6 +38,6 @@ ndcgSimMain = do
 eoptsSmoothTest = def
     { eloModulation = 18
     , eloProvisionalGraduation = 12
-    , eloProvisionalStrategy = SmoothFactorProvisional
+    , eloProvisionalStrategy = Just SmoothProvisional
     , eloProvisionalFactor = 1.5
     }

@@ -124,9 +124,10 @@ data EloOptions = EloOptions
     , eloRemotenessModulation :: Maybe Double
         -- | Which modulation adjustment strategy to use for provisional
         -- ratings.
-    , eloProvisionalStrategy :: EloProvStrategy
+    , eloProvisionalStrategy :: Maybe EloProvStrategy
         -- | Whether to use the provisional modulation factor for both players
-        -- when both have provisional status.
+        -- when both have provisional status. 'Nothing' disables provisional
+        -- modulation.
     , eloFullyProvisionalMatches :: Bool
         -- | The number of earlier events a player must have taken part in so
         -- that their rating isn't counted as provisional in the current event.
@@ -169,10 +170,9 @@ data EloOptions = EloOptions
 
 -- | The strategy for handling provisional ratings in the Elo engine.
 data EloProvStrategy
-    = NoProvisional            -- ^ Turns off provisional ratings.
-    | FixedFactorProvisional   -- ^ Changes modulations by a fixed factor.
-    | SmoothFactorProvisional  -- ^ Changes modulations by a variable factor
-                               -- that decays exponentially over the events.
+    = FixedProvisional   -- ^ Changes modulations by a fixed factor.
+    | SmoothProvisional  -- ^ Changes modulations by a variable factor
+                         -- that decays exponentially over the events.
     deriving (Eq, Enum, Show)
 
 
@@ -180,7 +180,7 @@ instance Default EloOptions where
     def = EloOptions
         { eloModulation = 20
         , eloRemotenessModulation = Just 22
-        , eloProvisionalStrategy = FixedFactorProvisional
+        , eloProvisionalStrategy = Just FixedProvisional
         , eloFullyProvisionalMatches = True
         , eloProvisionalGraduation = 5
         , eloProvisionalFactor = 2
