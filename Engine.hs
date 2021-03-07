@@ -147,13 +147,7 @@ toDelta eopts rtgs xy =
     let px = Map.lookup (player xy) rtgs
         py = Map.lookup (opponent xy) rtgs
         gap = maybe initialRating rating px - maybe initialRating rating py
-        (kx, ky) = case eloProvisionalStrategy eopts of
-            NoProvisional ->
-                (eloModulation eopts, eloModulation eopts)
-            FixedFactorProvisional ->
-                modulationFixedProvisional eopts px py
-            SmoothFactorProvisional ->
-                modulationSmoothProvisional eopts px py
+        (kx, ky) = modulationFactors eopts px py
         -- Remoteness weight.
         w = maybe 1
             (\n -> witch (n/pi) (1/2) 0 (remoteness xy))
@@ -162,68 +156,49 @@ toDelta eopts rtgs xy =
     in ((player xy, kx * baseDelta), (opponent xy, -ky * baseDelta))
 
 -- | The modulation factors to use, accounting for the players possibly
--- having provisional ratings using the fixed factor strategy.
-modulationFixedProvisional
+-- having provisional ratings using any of the various provisional factor
+-- strategies.
+modulationFactors
     :: EloOptions
     -> Maybe PipData
     -> Maybe PipData
     -> (Double, Double)
-modulationFixedProvisional eopts px py
-    | provisionalCheck px && not (provisionalCheck py)
-        = (kHi, kLo)
-    | not (provisionalCheck px) && provisionalCheck py
-        = (kLo, kHi)
-    | eloFullyProvisionalMatches eopts
-        && provisionalCheck px && provisionalCheck py
-        = (kHi, kHi)
-    | otherwise = (kBase, kBase)
+modulationFactors eopts px py = case eloProvisionalStrategy eopts of
+    NoProvisional -> (kBase, kBase)
+    strat -> provisionalFactors strat px py
     where
-    -- Provisional rating test, defaulting to True for new entrants. Note
-    -- that for the purposes of rating calculation the test is applied before
-    -- the update.
-    provisionalCheck :: Maybe PipData -> Bool
-    provisionalCheck = maybe True (isProvisional eopts)
+    -- Note that both kHi and kLo here use the factor from whoever is the
+    -- provisionally rated player.
+    provisionalFactors strat px py
+        | provisionalCheck px && not (provisionalCheck py)
+            = (kHi strat px, kLo strat px)
+        | not (provisionalCheck px) && provisionalCheck py
+            = (kLo strat py, kHi strat py)
+        | eloFullyProvisionalMatches eopts
+            && provisionalCheck px && provisionalCheck py
+            = (kHi strat px, kHi strat py)
+        | otherwise = (kBase, kBase)
 
     kBase = eloModulation eopts
-    kHi = kBase * eloProvisionalFactor eopts
-    kLo = kBase / eloProvisionalFactor eopts
 
--- | The modulation factors to use, accounting for the players possibly
--- having provisional ratings using the smooth factor strategy.
-modulationSmoothProvisional
-    :: EloOptions
-    -> Maybe PipData
-    -> Maybe PipData
-    -> (Double, Double)
-modulationSmoothProvisional eopts px py
-    | provisionalCheck px && not (provisionalCheck py)
-        = (kHi px, kLo px)
-    | not (provisionalCheck px) && provisionalCheck py
-        = (kLo py, kHi py)
-    | eloFullyProvisionalMatches eopts
-        && provisionalCheck px && provisionalCheck py
-        = (kHi px, kHi py)
-    | otherwise = (kBase, kBase)
-    where
-    -- Provisional rating test, defaulting to True for new entrants. Note
-    -- that for the purposes of rating calculation the test is applied before
-    -- the update.
-    provisionalCheck :: Maybe PipData -> Bool
-    provisionalCheck = maybe True (isProvisional eopts)
+    kHi strat pz = case strat of
+        FixedFactorProvisional -> kBase * eloProvisionalFactor eopts
+        SmoothFactorProvisional -> kBase * provisionalDecay eopts (previousEntries pz)
+        NoProvisional -> kBase
+
+    kLo strat pz = case strat of
+        FixedFactorProvisional -> kBase / eloProvisionalFactor eopts
+        SmoothFactorProvisional -> kBase / provisionalDecay eopts (previousEntries pz)
+        NoProvisional -> kBase
 
     previousEntries :: Maybe PipData -> Int
     previousEntries = maybe 0 entries
 
-    kBase :: Double
-    kBase = eloModulation eopts
-
-    -- Note that both kHi and kLo here use the factor from whoever is the
-    -- provisionally rated player.
-    kHi :: Maybe PipData -> Double
-    kHi pz = kBase * provisionalDecay eopts (previousEntries pz)
-
-    kLo :: Maybe PipData -> Double
-    kLo pz = kBase / provisionalDecay eopts (previousEntries pz)
+    -- Provisional rating test, defaulting to True for new entrants. Note
+    -- that for the purposes of rating calculation the test is applied before
+    -- the update.
+    provisionalCheck :: Maybe PipData -> Bool
+    provisionalCheck = maybe True (isProvisional eopts)
 
 -- | Applies a rating change to the collection of ratings.
 --
