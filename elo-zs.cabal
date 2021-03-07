@@ -60,5 +60,6 @@ executable elo-zs
                      , filepath
                      , directory
                      , vector
+                     , MemoTrie
   -- hs-source-dirs:
   default-language:    Haskell2010

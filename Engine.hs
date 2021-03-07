@@ -30,6 +30,7 @@ import qualified Control.Scanl as LS
 import Data.List
 import Data.Default.Class
 import Numeric.RootFinding
+import Data.MemoTrie
 
 -- | Converts a 'WDL' outcome to a numeric value.
 wdlScore :: WDL -> Double
@@ -260,7 +261,7 @@ provisionalDecay
 provisionalDecay eopts nEntries = fctr ^ (grad - nEntries)
     where
     grad = eloProvisionalGraduation eopts
-    fctr = lastProvisionalFactor grad (eloProvisionalFactor eopts)
+    fctr = memoLpf grad (decodeFloat (eloProvisionalFactor eopts))
 
 -- | Obtains the smooth modulation provisional factor to use at the last event
 -- before graduation.
@@ -286,3 +287,8 @@ lastProvisionalFactor grad avgFctr =
 -- upperBound arises from using sqrt q as an underestimate of (q - 1)/log q,
 -- which is itself a lower bound for the average factor, and its limit as g
 -- goes to infinity.
+
+-- | Memoising version of lastProvisionalFactor. The average factor argument
+-- is supplied as a 'decodeFloat' pair.
+memoLpf :: Int -> (Integer, Int) -> Double
+memoLpf = memo2 (\g a -> lastProvisionalFactor g (uncurry encodeFloat a))
