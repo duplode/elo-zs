@@ -183,11 +183,17 @@ modulationFactors eopts px py = case eloProvisionalStrategy eopts of
 
     kHi strat pz = case strat of
         FixedProvisional -> kBase * eloProvisionalFactor eopts
-        SmoothProvisional -> kBase * provisionalDecay eopts (previousEntries pz)
+        SmoothProvisional ->
+            kBase * smoothProvisionalDecay eopts (previousEntries pz)
+        LinearProvisional ->
+            kBase * linearProvisionalDecay eopts (previousEntries pz)
 
     kLo strat pz = case strat of
         FixedProvisional -> kBase / eloProvisionalFactor eopts
-        SmoothProvisional -> kBase / provisionalDecay eopts (previousEntries pz)
+        SmoothProvisional ->
+            kBase / smoothProvisionalDecay eopts (previousEntries pz)
+        LinearProvisional ->
+            kBase / linearProvisionalDecay eopts (previousEntries pz)
 
     previousEntries :: Maybe PipData -> Int
     previousEntries = maybe 0 entries
@@ -226,23 +232,33 @@ updateCount ri' = fmap (\(PipData rtg n i) ->
 isProvisional :: EloOptions -> PipData -> Bool
 isProvisional eopts rtg = entries rtg < eloProvisionalGraduation eopts
 
+-- | Linear decay for provisional modulation.
+linearProvisionalDecay
+    :: EloOptions
+    -> Int  -- ^ Number of previous entries
+    -> Double
+linearProvisionalDecay eopts nEntries = 1 + d * fromIntegral (grad - nEntries)
+    where
+    grad = eloProvisionalGraduation eopts
+    d = 2 * (eloProvisionalFactor eopts - 1) / fromIntegral (grad + 1)
+
 -- | Exponential decay for smooth provisional modulation.
-provisionalDecay
+smoothProvisionalDecay
     :: EloOptions
     -> Int  -- ^ Number of previous entries.
     -> Double
-provisionalDecay eopts nEntries = fctr ^ (grad - nEntries)
+smoothProvisionalDecay eopts nEntries = fctr ^ (grad - nEntries)
     where
     grad = eloProvisionalGraduation eopts
-    fctr = memoLpf grad (decodeFloat (eloProvisionalFactor eopts))
+    fctr = memoBsf grad (decodeFloat (eloProvisionalFactor eopts))
 
 -- | Obtains the smooth modulation provisional factor to use at the last event
 -- before graduation.
-lastProvisionalFactor
+baseSmoothFactor
     :: Int     -- ^ Provisional window/events until graduation.
     -> Double  -- ^ Average factor over the window.
     -> Double
-lastProvisionalFactor grad avgFctr =
+baseSmoothFactor grad avgFctr =
     case ridders def (lowerBound, upperBound) fCrossing of
         NotBracketed -> error "Engine.lastProvisionalFactor: fCrossing not bracketed"
         SearchFailed -> error "Engine.lastProvisionalactor: root search failure"
@@ -255,7 +271,7 @@ lastProvisionalFactor grad avgFctr =
     upperBound = avgFctr^2
 -- In the implementation above, fCrossing originates from the equation
 -- a * g = q * (q^g - 1) / (q - 1)
--- with a = avgFctr, g = grad and q = lastProvisionalFactor grad avgFctr.
+-- with a = avgFctr, g = grad and q = baseSmoothFactor grad avgFctr.
 -- lowerBound is the local minimum of fCrossing near the root.
 -- upperBound arises from using sqrt q as an underestimate of (q - 1)/log q,
 -- which is itself a lower bound for the average factor, and its limit as g
@@ -263,5 +279,5 @@ lastProvisionalFactor grad avgFctr =
 
 -- | Memoising version of lastProvisionalFactor. The average factor argument
 -- is supplied as a 'decodeFloat' pair.
-memoLpf :: Int -> (Integer, Int) -> Double
-memoLpf = memo2 (\g a -> lastProvisionalFactor g (uncurry encodeFloat a))
+memoBsf :: Int -> (Integer, Int) -> Double
+memoBsf = memo2 (\g a -> baseSmoothFactor g (uncurry encodeFloat a))

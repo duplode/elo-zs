@@ -171,8 +171,10 @@ data EloOptions = EloOptions
 -- | The strategy for handling provisional ratings in the Elo engine.
 data EloProvStrategy
     = FixedProvisional   -- ^ Changes modulations by a fixed factor.
+    | LinearProvisional  -- ^ Changes modulations by a variable factor
+                         -- that decays linearly.
     | SmoothProvisional  -- ^ Changes modulations by a variable factor
-                         -- that decays exponentially over the events.
+                         -- that decays exponentially.
     deriving (Eq, Enum, Show)
 
 
