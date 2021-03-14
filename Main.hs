@@ -15,29 +15,21 @@ main = perfMain
 
 simMain = do
     seed <- save =<< createSystemRandom
-    let eopts = eoptsSmoothTest -- { simRuns = 100000 }
+    let eopts = def -- { simRuns = 100000 }
     (tab, newSeed) <- runSimM (Just seed) $ demoSimStrength eopts
     demoToCsv "test.csv" tab
     T.writeFile "last-seed.txt" $ T.pack . show $
         (fromSeed seed, fromSeed newSeed)
 
 perfMain = do
-    let eopts = eoptsSmoothTest  -- def
+    let eopts = def
     tab <- demoPerfTopStrength' eopts
     demoToCsv "test2.csv" tab
 
 ndcgSimMain = do
     seed <- save =<< createSystemRandom
-    let eopts = eoptsSmoothTest { simRuns = 1000 }
+    let eopts = def { simRuns = 1000 }
     (tab, newSeed) <- runSimM (Just seed) $ demoNdcgSim eopts
     demoToCsv "test.csv" tab
     T.writeFile "last-seed.txt" $ T.pack . show $
         (fromSeed seed, fromSeed newSeed)
-
--- Options for the experiments with smooth provisional factors.
-eoptsSmoothTest = def
-    { eloModulation = 18
-    , eloProvisionalGraduation = 12
-    , eloProvisionalStrategy = Just SmoothProvisional
-    , eloProvisionalFactor = 1.5
-    }

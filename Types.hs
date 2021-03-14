@@ -19,6 +19,7 @@ module Types (
     , FaceOff(..)
     , FaceOff'
     , EloOptions(..)
+    , conventionalEloDefaults
     , EloProvStrategy(..)
     -- * Race index tagging
     , AtRace(..)
@@ -180,18 +181,28 @@ data EloProvStrategy
 
 instance Default EloOptions where
     def = EloOptions
-        { eloModulation = 20
+        { eloModulation = 18
         , eloRemotenessModulation = Just 22
-        , eloProvisionalStrategy = Just FixedProvisional
+        , eloProvisionalStrategy = Just SmoothProvisional
         , eloFullyProvisionalMatches = True
-        , eloProvisionalGraduation = 5
-        , eloProvisionalFactor = 2
-        , eloGammaShape = 1
+        , eloProvisionalGraduation = 12
+        , eloProvisionalFactor = 1.5
+        , eloGammaShape = 3
         , simProbeRating = 1500  -- TODO: Should this be Engine.initialRating?
         , simTarget = 5
         , simRuns = 10000
         }
 
+-- | The former defaults, which set up a conventional Elo calculation with
+-- a fixed provisional factor.
+conventionalEloDefaults :: EloOptions
+conventionalEloDefaults = def
+    { eloModulation = 20
+    , eloProvisionalStrategy = Just FixedProvisional
+    , eloProvisionalGraduation = 5
+    , eloProvisionalFactor = 2
+    , eloGammaShape = 1
+    }
 
 -- | A value tagged with a race index. Uses include race identification and
 -- application of player activity windows.
