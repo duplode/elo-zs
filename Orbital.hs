@@ -28,10 +28,11 @@ import Numeric.Polynomial
 import Numeric.SpecFunctions (choose)
 import Statistics.Distribution
 import Statistics.Distribution.Gamma
+import Data.MemoTrie
 
 -- | Winning probability of a racer with k = u against a racer with k = v,
--- according to the performance model. Only here for reference, at least for
--- now.
+-- according to the Elo performance model. Only here for reference, at least
+-- for now.
 perfWP :: Double -> Double -> Double
 perfWP u v = ratioWP 1 w
     where
@@ -45,6 +46,18 @@ ratioWP gsh = \w -> w^gsh * evaluatePolynomial w coeffs
     coeffs = V.generate gsh $ \i ->
         (-1)^i * choose gsh i * choose (2*gsh-1) (gsh-1)
             * fromIntegral (gsh-i) / fromIntegral (gsh+i)
+
+-- | Coefficients of the polynomial used in the gamma winning probablilty
+-- calculation. For testing purposes only, at least for now.
+wpCoefficients :: Int -> V.Vector Double
+wpCoefficients gsh =  V.generate gsh $ \i ->
+    (-1)^i * choose gsh i * choose (2*gsh-1) (gsh-1)
+        * fromIntegral (gsh-i) / fromIntegral (gsh+i)
+
+-- | Memoised coefficients of the polynomial. For testing purposes only, at
+-- least for now.
+memoWpCoefficients :: Int -> V.Vector Double
+memoWpCoefficients = memo wpCoefficients
 
 -- | Initial rating for new racers. Defined as a constant here for
 -- expediteness, taking into account that making it configurable isn't as
@@ -87,10 +100,14 @@ eloGammaCorrection gsh = extraAdjustment * baseCorrection
 eloFactor :: Int -> Double
 eloFactor gsh = eloGammaCorrection gsh * eloAlpha
 
+-- | Memoised Elo conversion factor.
+memoEloFactor :: Int -> Double
+memoEloFactor = memo eloFactor
+
 -- | Winning probabilities for (scaled) rating differences. Ratings are
 -- essentially logarithms of the gamma distribution rate parameters.
 deltaWP :: Int -> Double -> Double
-deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(- eloFactor gsh * d)))
+deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(- memoEloFactor gsh * d)))
 -- Note that 1 / (1 + exp(-x)) = (1 + tanh (x/2)) / 2
 
 -- | Elo-based winning probability. This version takes the ratings of the two
@@ -116,6 +133,8 @@ ratingFromK gsh u = referenceRating + log (u / referenceK) / eloFactor gsh
 -- | rating-to-k conversion.
 kFromRating :: Int -> Double -> Double
 kFromRating gsh r = referenceK * exp ((r - referenceRating) * eloFactor gsh)
+-- Using memoEloFactor instead of eloFactor here doesn't seem to improve
+-- performance.
 
 -- | The model distribution is a special case of the gamma distribution, with
 -- theta = 1/k.
