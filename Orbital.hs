@@ -12,8 +12,7 @@
 -- orbital. The corresponding distribution can be obtained by setting the
 -- gamma shape parameter to 3.
 module Orbital
-    ( perfWP
-    , deltaWP
+    ( deltaWP
     , eloWP
     , initialRating
     , kFromRating
@@ -28,14 +27,6 @@ import Statistics.Distribution
 import Statistics.Distribution.Gamma
 import Data.MemoTrie
 import Data.List (foldl')
-
--- | Winning probability of a racer with k = u against a racer with k = v,
--- according to the Elo performance model. Only here for reference, at least
--- for now.
-perfWP :: Double -> Double -> Double
-perfWP u v = ratioWP 1 w
-    where
-    w = u / (u + v)
 
 -- | The base implementation of victory probabilities for performances
 -- modelled by gamma distributions with the same (integer) shape.
@@ -113,7 +104,10 @@ memoEloFactor = memo eloFactor
 -- essentially logarithms of the gamma distribution rate parameters.
 deltaWP :: Int -> Double -> Double
 deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(- memoEloFactor gsh * d)))
--- Note that 1 / (1 + exp(-x)) = (1 + tanh (x/2)) / 2
+-- If ru = log u, rv = log v, and d = ru - rv, then
+-- u / (u + v) = 1 / (1 + exp (-d))
+-- Another way of expressing the ratio is given by
+-- 1 / (1 + exp(-d)) = (1 + tanh (d/2)) / 2
 
 -- | Elo-based winning probability. This version takes the ratings of the two
 -- racers. Only here for reference, at least for now.
