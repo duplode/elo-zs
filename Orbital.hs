@@ -23,12 +23,11 @@ module Orbital
     , orbitalK
     ) where
 
-import qualified Data.Vector as V
-import Numeric.Polynomial
 import Numeric.SpecFunctions (choose)
 import Statistics.Distribution
 import Statistics.Distribution.Gamma
 import Data.MemoTrie
+import Data.List (foldl')
 
 -- | Winning probability of a racer with k = u against a racer with k = v,
 -- according to the Elo performance model. Only here for reference, at least
@@ -41,23 +40,29 @@ perfWP u v = ratioWP 1 w
 -- | The base implementation of victory probabilities for performances
 -- modelled by gamma distributions with the same (integer) shape.
 ratioWP :: Int -> Double -> Double
-ratioWP gsh = \w -> w^gsh * evaluatePolynomial w coeffs
+ratioWP gsh = \w -> w^gsh * evalPoly (memoWpCoefficient gsh) (gsh-1) w
+
+-- | A strict pair type.
+data SP a b = SP !a !b
+
+-- | A polynomial evaluator. For our immediate purposes, it performs slightly
+-- better than the one available in 'Numeric.Polynomial'.
+evalPoly :: (Int -> Double) -> Int -> Double -> Double
+evalPoly coef n x = y
     where
-    coeffs = V.generate gsh $ \i ->
-        (-1)^i * choose gsh i * choose (2*gsh-1) (gsh-1)
-            * fromIntegral (gsh-i) / fromIntegral (gsh+i)
+    SP xn y = foldl' alg (SP 1 0) [0..n]
+    alg (SP xx s) m = SP (x * xx) (coef m * xx + s)
 
--- | Coefficients of the polynomial used in the gamma winning probablilty
--- calculation. For testing purposes only, at least for now.
-wpCoefficients :: Int -> V.Vector Double
-wpCoefficients gsh =  V.generate gsh $ \i ->
-    (-1)^i * choose gsh i * choose (2*gsh-1) (gsh-1)
-        * fromIntegral (gsh-i) / fromIntegral (gsh+i)
+-- | Coefficients of the polynomial used in the gamma winning probability
+-- calculation.
+wpCoefficient :: Int -> Int -> Double
+wpCoefficient gsh m =
+    (-1)^m * choose gsh m * choose (2*gsh-1) (gsh-1)
+        * fromIntegral (gsh-m) / fromIntegral (gsh+m)
 
--- | Memoised coefficients of the polynomial. For testing purposes only, at
--- least for now.
-memoWpCoefficients :: Int -> V.Vector Double
-memoWpCoefficients = memo wpCoefficients
+-- | Memoised version of 'wpCoefficient'.
+memoWpCoefficient :: Int -> Int -> Double
+memoWpCoefficient = memo2 wpCoefficient
 
 -- | Initial rating for new racers. Defined as a constant here for
 -- expediteness, taking into account that making it configurable isn't as
