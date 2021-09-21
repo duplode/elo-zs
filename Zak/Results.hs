@@ -126,7 +126,7 @@ crudeData =
     , c198, c199, c200, c201, c202, c203, c204, c205, c206, c207, c208, c209
     , c210, c211, c212, c213, c214, c215, c216, c217, c218, c219, c220, c221
     , c222, c223, c224, c225, c226, c227, c228, c229, c230, c231, c232, c233
-    , c234, c235
+    , c234, c235, c236, c237, c238, c239, c240, c241, c242
     ]
 
 -- Events in ZakStunts history which are relevant for evaluating how the
@@ -4007,7 +4007,7 @@ c234 = NoDraws
         , "Cas"
         , "Usrin"
         , "Shoegazing Leo"
-        , "Igorp"
+        , "Igor"
         , "matamo"
         , "Daniel3D"
         --, "KaoS"  -- # Rule #3 exclusion
@@ -4035,7 +4035,146 @@ c235 = NoDraws
         , "Straycat"
         , "matamo"
         , "Daniel3D"
-        , "Igorp"
+        , "Igor"
         , "ZdnBurns"
         , "Stan 286XT"
+        ]
+
+c236 = NoDraws
+        [ "CTG"
+        , "Akoss Poo"
+        , "Duplode"
+        , "Overdrijf"
+        , "Alan Rotoi"
+        , "KyLiE"
+        , "dreadnaut"
+        , "Zapper"
+        , "Heretic"
+        , "GTAMan15"
+        , "dosbox92"
+        , "afullo"
+        , "Cas"
+        , "Shoegazing Leo"
+        , "Seeker1982"
+        , "Marco"
+        , "KaoS"
+        , "Igor"
+        --, "Straycat"  -- Rule #3 exclusion
+        , "Johnny Alaska"
+        --, "Stan 286XT"  -- Rule #3 exclusion
+        ]
+
+c237 = NoDraws
+        [ "Duplode"
+        , "Akoss Poo"
+        , "Seeker1982"
+        , "CTG"
+        , "Alan Rotoi"
+        , "KyLiE"
+        , "dreadnaut"
+        , "Zapper"
+        , "Ryoma"
+        , "Heretic"
+        , "GTAMan15"
+        , "afullo"
+        , "Overdrijf"
+        , "Cas"
+        , "Shoegazing Leo"
+        , "Igor"
+        , "matamo"
+        --, "KaoS"  -- Rule #2
+        --, "Marco"  -- Rule #2
+        , "Stan 286XT"
+        ]
+
+c238 = NoDraws
+        [ "Alan Rotoi"
+        , "Duplode"
+        , "Akoss Poo"
+        , "Friker"
+        , "KyLiE"
+        , "Ryoma"
+        , "dreadnaut"
+        , "Overdrijf"
+        , "Zapper"
+        , "afullo"
+        , "Heretic"
+        , "Igor"
+        , "GTAMan15"
+        , "Cas"
+        , "matamo"
+        , "Stan 286XT"
+        , "Shoegazing Leo"
+        --, "KaoS"  -- Rule #2
+        , "AMG"
+        , "satanziege"
+        --, "Straycat"  -- Rule #3
+        ]
+
+c239 = NoDraws
+        [ "Alan Rotoi"
+        , "Duplode"
+        , "KyLiE"
+        , "Overdrijf"
+        , "Friker"
+        , "Zapper"
+        , "dreadnaut"
+        , "Ryoma"
+        , "Heretic"
+        , "afullo"
+        , "Cas"
+        , "1337haxoryt"
+        , "Shoegazing Leo"
+        --, "KaoS"  -- Rule #2
+        , "Igor"
+        --, "Stan 286XT"  -- Rule #3
+        ]
+
+c240 = NoDraws
+        [ "Alan Rotoi"
+        , "Zapper"
+        , "Duplode"
+        , "Overdrijf"
+        , "Friker"
+        , "KyLiE"
+        , "Heretic"
+        , "afullo"
+        , "dreadnaut"
+        , "Ryoma"
+        , "Shoegazing Leo"
+        , "Cas"
+        , "1337haxoryt"
+        --, "KaoS"  -- Rule #3
+        --, "Stan 286XT"  -- Rule #3
+        ]
+
+c241 = NoDraws
+        [ "Alan Rotoi"
+        , "Duplode"
+        , "KyLiE"
+        , "CTG"
+        , "Zapper"
+        , "Heretic"
+        , "dreadnaut"
+        , "Overdrijf"
+        , "afullo"
+        , "Cas"
+        , "Shoegazing Leo"
+        --, "KaoS"  -- Rule #3
+        --, "Stan 286XT"  -- Rule #3
+        ]
+
+c242 = NoDraws
+        [ "Alan Rotoi"
+        , "Duplode"
+        , "Overdrijf"
+        , "KyLiE"
+        , "Zapper"
+        , "afullo"
+        , "Heretic"
+        , "dreadnaut"
+        , "Cas"
+        --, "Shoegazing Leo"  -- Rule #3
+        --, "KaoS"  -- Rule #2
+        --, "Stan 286XT"  -- Rule #3
         ]
