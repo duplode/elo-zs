@@ -3218,7 +3218,7 @@ c180 = NoDraws
         , "dstien"
         , "Shoegazing Leo"
         , "ninja750"
-        , "Wanted77"
+        --, "Wanted77"  -- Rule #2b
         --, "afullo"  -- Rule #3 exclusion
         ]
 c181 = NoDraws
@@ -3350,7 +3350,7 @@ c190 = NoDraws
         , "dreadnaut"
         , "Imperas"
         , "arturbmallman"
-        , "KaoS"
+        --, "KaoS"  -- Rule #2b
         , "Cas"
         , "Shoegazing Leo"
         --, "afullo"  -- Rule #3 exclusion
@@ -3388,10 +3388,10 @@ c193 = NoDraws
         , "dreadnaut"
         , "Imperas"
         , "Seeker1982"
-        , "Marco"
+        --, "Marco"  -- Rule #2b
         , "Cas"
         , "Shoegazing Leo"
-        , "dosbox92"
+        --, "dosbox92"  -- Rule #2b
         , "afullo"
         ]
 c194 = NoDraws
@@ -3593,7 +3593,7 @@ c209 = WithDraws
         , flip Result 9 "afullo"
         , flip Result 11 "Heretic"
         , flip Result 12 "Shoegazing Leo"
-        , flip Result 13 "KaoS"
+        --, flip Result 13 "KaoS"  -- Rule #2b
         , flip Result 14 "Motig"
         , flip Result 15 "GTAMan15"
         --, flip Result 16 "Stan 286XT"  -- Rule #3 exclusion
@@ -3691,7 +3691,7 @@ c215 = NoDraws
         , "Cas"
         , "sd4000"
         , "Heretic"
-        , "Stan 286XT"
+        --, "Stan 286XT"  -- Rule #2b
         ]
 c216 = NoDraws
         [ "Marco"
@@ -3794,7 +3794,7 @@ c222 = WithDraws
         ,flip Result 5 "Stingray86"
         ,flip Result 6 "Heretic"
         ,flip Result 7 "afullo"
-        ,flip Result 8 "KaoS"
+        --,flip Result 8 "KaoS"  -- Rule #2b
         ,flip Result 9 "Shoegazing Leo"
         ,flip Result 10 "sd4000"
         ,flip Result 11 "Cas"
@@ -3807,15 +3807,15 @@ c223 = NoDraws
         , "CTG"
         , "Stingray86"
         , "Overdrijf"
-        , "Marco"
+        --, "Marco"  -- Rule #2b
         , "dreadnaut"
         , "afullo"
-        , "KaoS"
+        -- , "KaoS"  -- Rule #2b
         , "Cas"
         , "sd4000"
         , "Shoegazing Leo"
         , "HL96T"
-        , "Stan 286XT"
+        --, "Stan 286XT"  -- Rule #2b
         ]
 c224 = NoDraws
         [ "Duplode"
@@ -3828,7 +3828,7 @@ c224 = NoDraws
         , "Seeker1982"
         , "afullo"
         , "Cas"
-        , "KaoS"
+        --, "KaoS"  -- Rule #2b
         , "sd4000"
         , "HL96T"
         , "Shoegazing Leo"
@@ -3857,8 +3857,8 @@ c226 = NoDraws
         , "CTG"
         , "dreadnaut"
         , "Stingray86"
-        , "Marco"
-        , "KaoS"
+        --, "Marco"  -- Rule #2b
+        --, "KaoS"  -- Rule #2b
         , "afullo"
         , "Heretic"
         , "Alan Rotoi"
@@ -3910,11 +3910,11 @@ c229 = NoDraws
         , "dreadnaut"
         , "afullo"
         , "KyLiE"
-        , "KaoS"
+        --, "KaoS"  -- Rule #2b
         , "Straycat"
         , "Cas"
         , "Shoegazing Leo"
-        , "Zak McKracken"
+        --, "Zak McKracken"  -- Rule #2b
         , "GTAMan15"
         , "Stan 286XT"
         ]
@@ -3930,7 +3930,7 @@ c230 = NoDraws
         , "Overdrijf"
         , "Alan Rotoi"
         , "afullo"
-        , "Zak McKracken"
+        --, "Zak McKracken"  -- Rule #2b
         , "Shoegazing Leo"
         , "Cas"
         , "Straycat"
@@ -3950,7 +3950,7 @@ c231 = NoDraws
         , "afullo"
         , "Straycat"
         , "Cas"
-        , "KaoS"
+        --, "KaoS"  -- Rule #2b
         , "Shoegazing Leo"
         --, "Stan 286XT"  -- Rule #3 exclusion
         ]
@@ -3965,7 +3965,7 @@ c232 = NoDraws
         , "Heretic"
         , "KyLiE"
         , "Stingray86"
-        , "KaoS"
+        --, "KaoS"  -- Rule #2b
         , "Straycat"
         , "Shoegazing Leo"
         , "Cas"
@@ -4027,17 +4027,17 @@ c235 = NoDraws
         , "Zapper"
         , "afullo"
         , "Heretic"
-        , "Zak McKracken"
+        --, "Zak McKracken"  -- Rule #2b
         , "Cool Gaddafi"
         , "Shoegazing Leo"
         , "Cas"
-        , "KaoS"
+        --, "KaoS"  -- Rule #2b
         , "Straycat"
         , "matamo"
         , "Daniel3D"
         , "Igor"
         , "ZdnBurns"
-        , "Stan 286XT"
+        --, "Stan 286XT"  -- Rule #2b
         ]
 
 c236 = NoDraws
@@ -4055,9 +4055,9 @@ c236 = NoDraws
         , "afullo"
         , "Cas"
         , "Shoegazing Leo"
-        , "Seeker1982"
-        , "Marco"
-        , "KaoS"
+        --, "Seeker1982"  -- Rule #2b
+        --, "Marco"  -- Rule #2b
+        --, "KaoS"  -- Rule #2b
         , "Igor"
         --, "Straycat"  -- Rule #3 exclusion
         , "Johnny Alaska"
