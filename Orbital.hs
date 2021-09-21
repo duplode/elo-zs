@@ -114,24 +114,26 @@ deltaWP gsh = \d -> ratioWP gsh (1 / (1 + exp(- memoEloFactor gsh * d)))
 eloWP :: Double -> Double -> Double
 eloWP ru rv = deltaWP 1 (ru-rv)
 
--- As far as the results go, the effect of referenceRating and referenceK is
--- superficial. Since they adjust all ratings in the same manner, changing
--- them does not affect the overall results. Note, though, that large values
--- of k noticeably slow down the calculations, probably by making it harder
--- for the gamma distribution algorithms.
+-- | Rating that corresponds to a gamma rate parameter of 1.
+--
+-- As far as the results go, the effect of 'referenceRating' is superficial.
+-- Since it adjusts all ratings in the same manner, changing it does not affect
+-- the overall results.
+--
+-- There used to be a counterpart @referenceK@ definition, which was removed
+-- for being redundant. It is worth noting that scaling the conversions to make
+-- the gamma rate ("k") values larger slows down the calculations, probably by
+-- making it harder for the gamma distribution algorithms.
 referenceRating :: Double
 referenceRating = initialRating
 
-referenceK :: Double
-referenceK = 1
-
 -- | k-to-rating conversion. Only for reference, at least for now.
 ratingFromK :: Int -> Double -> Double
-ratingFromK gsh u = referenceRating + log (u / referenceK) / eloFactor gsh
+ratingFromK gsh u = referenceRating + log u / eloFactor gsh
 
 -- | rating-to-k conversion.
 kFromRating :: Int -> Double -> Double
-kFromRating gsh r = referenceK * exp ((r - referenceRating) * eloFactor gsh)
+kFromRating gsh r = exp ((r - referenceRating) * eloFactor gsh)
 -- Using memoEloFactor instead of eloFactor here doesn't seem to improve
 -- performance.
 
