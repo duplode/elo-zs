@@ -16,6 +16,8 @@ copyright:           MIT
 category:            Game, Statistics, Simulation
 build-type:          Simple
 extra-source-files:  CHANGELOG.md
+data-dir:            .
+data-files:          Zak/zakstunts-race-positions.csv
 
 executable elo-zs
   main-is:             Main.hs
@@ -61,5 +63,8 @@ executable elo-zs
                      , directory
                      , vector
                      , MemoTrie
+                     , cassava
+                     , file-embed
+                     , bytestring
   -- hs-source-dirs:
   default-language:    Haskell2010

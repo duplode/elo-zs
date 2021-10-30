@@ -3,7 +3,11 @@
 -- Module: Zak.Consolidation
 --
 -- Race results from zak.stunts.hu, used as sample data.
--- This is just a scratchpad for exporting as a CSV.
+--
+-- This is an old version of Zak.Results, used for the initial export of
+-- Zak/zakstunts-race-positions.csv. It is kept around for the sake of
+-- documentation, as the comments here point out racer aliases and other
+-- information we might also want to consolidadte at some point.
 module Zak.Consolidation
     ( testData
     ) where
