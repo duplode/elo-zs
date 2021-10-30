@@ -1,17 +1,22 @@
 {-# LANGUAGE LambdaCase, OverloadedStrings #-}
 -- |
--- Module: Zak.Results
+-- Module: Zak.Consolidation
 --
 -- Race results from zak.stunts.hu, used as sample data.
-module Zak.Results
+-- This is just a scratchpad for exporting as a CSV.
+module Zak.Consolidation
     ( testData
     ) where
 
 import Types
 import Tidying
+import Zak.Misc
+import Tabular
 
 import qualified Data.List.NonEmpty as NE
 import Data.Bool
+import qualified Data.Text as T
+import qualified Text.Tabular as Tab
 
 -- | Preliminary result list for a race, subject to preprocessing.
 data ScratchResults
@@ -33,6 +38,25 @@ testData opts = processRaceResults <$> crudeData
     mkResults = \case
         NoDraws ps -> zipWith Result ps [1..]
         WithDraws ps -> ps
+
+-- Usage: demoToCsv "all-results.csv" resultsTable
+resultsTable :: Tab.Table String String String
+resultsTable = processRaceResults crudeData
+    where
+    processRaceResults = id
+        . mkTable
+        . concat
+        . fmap sequenceA
+        . zip (toZakLabel <$> [1..])
+        . fmap mkResults
+    mkResults = \case
+        NoDraws ps -> zipWith Result ps [1..]
+        WithDraws ps -> ps
+    mkTable = arrangeTable
+        (fmap show . zipWith const [1..])
+        ["Track", "Racer", "Rank", "Ghost", "Status"]
+        (\(t, Result p rk) -> [t, T.unpack p, show rk
+            , show (fromEnum (p `elem` ghostList)), ""])
 
 -- | List of player identifiers to remove from the raw data.
 ghostList :: [PipId]
@@ -895,7 +919,7 @@ c039 = NoDraws
         , "DieselJoe"
         , "Mr.Hiccup"
         , "Shoegazing Leo"
-        --, "lise"  -- Rule #1 exclusion.
+        , "lise"  -- Rule #1 exclusion.
         ]
 c040 = NoDraws
         [ "Alain"
@@ -1047,7 +1071,7 @@ c047 = NoDraws
         , "lise"
         , "offthewall"
         , "N. Oliveira"
-        --, "NicoPelu"  -- DSQ
+        , "NicoPelu"  -- DSQ
         ]
 c048 = NoDraws
         [ "CTG"
@@ -1071,7 +1095,7 @@ c048 = NoDraws
         , "lise"
         , "Dinmor"  -- "dinmor"
         , "NicoPelu"
-        --, "Chulk"  -- DSQ
+        , "Chulk"  -- DSQ
         ]
 c049 = NoDraws
         [ "CTG"
@@ -1140,7 +1164,7 @@ c051 = NoDraws
         , "Chicken in the oven"
         , "satanziege"
         , "lise"
-        --, "Tirgen"  -- DSQ
+        , "Tirgen"  -- DSQ
         ]
 c052 = NoDraws
         [ "Ayrton"
@@ -1170,7 +1194,7 @@ c052 = NoDraws
         , "HappyWorm"
         , "attis"
         , "TurboJack"
-        --, "AlanChuytrix70"  -- DSQ
+        , "AlanChuytrix70"  -- DSQ
         ]
 c053 = NoDraws
         [ "Akoss Poo"
@@ -1253,8 +1277,8 @@ c055 = WithDraws
         , flip Result 27 "Flying Samba Racer"
         , flip Result 28 "lise"
         , flip Result 29 "Zweigelt"
-        --, flip Result 30 "Ursin"  -- DSQ
-        --, flip Result 30 "docu"  -- DSQ
+        , flip Result 30 "Ursin"  -- DSQ
+        , flip Result 30 "docu"  -- DSQ
         ]
 c056 = WithDraws
         [ flip Result 1 "Ayrton"
@@ -1278,7 +1302,7 @@ c056 = WithDraws
         , flip Result 19 "Paleke"
         , flip Result 19 "BeerBor"
         , flip Result 20 "SergioBaro"
-        --, flip Result 21 "Marci"  -- Rule #1 exclusion.
+        , flip Result 21 "Marci"  -- Rule #1 exclusion.
         ]
 c057 = NoDraws
         [ "Chulk"
@@ -1373,8 +1397,8 @@ c060 = WithDraws
         , flip Result 21 "lise"  -- "Lise"
         , flip Result 22 "hek"
         , flip Result 23 "JTK"
-        --, flip Result 24 "Gelato Baker"  -- DSQ
-        --, flip Result 24 "Chicago Striker"  -- DSQ
+        , flip Result 24 "Gelato Baker"  -- DSQ
+        , flip Result 24 "Chicago Striker"  -- DSQ
         ]
 c061 = NoDraws
         [ "Ayrton"
@@ -1448,7 +1472,7 @@ c063 = WithDraws
         , flip Result 23 "Marci"
         , flip Result 24 "Shoegazing Leo"
         , flip Result 25 "Lene"
-        --, flip Result 26 "4.44.45"  -- Rule #1 exclusion
+        , flip Result 26 "4.44.45"  -- Rule #1 exclusion
         ]
 c064 = WithDraws
         [ flip Result 1 "Renato Biker"
@@ -1495,7 +1519,7 @@ c065 = WithDraws
         , flip Result 20 "PedroAntonio"
         , flip Result 21 "Shoegazing Leo"
         , flip Result 22 "Quanto"
-        --, flip Result 23 "corneta"  -- DSQ
+        , flip Result 23 "corneta"  -- DSQ
         ]
 c066 = NoDraws
         [ "CTG"
@@ -1515,7 +1539,7 @@ c066 = NoDraws
         , "Dinmor"
         , "hek"
         , "JTK"
-        --, "Bolo Yeung"  -- DSQ
+        , "Bolo Yeung"  -- DSQ
         ]
 c067 = NoDraws
         [ "Ayrton"
@@ -1553,7 +1577,7 @@ c068 = WithDraws
         , flip Result 15 "Shoegazing Leo"
         , flip Result 16 "Lene"
         , flip Result 17 "JTK"
-        --, flip Result 18 "Bonzai Joe"  -- Rule #1 exclusion
+        , flip Result 18 "Bonzai Joe"  -- Rule #1 exclusion
         ]
 c069 = NoDraws
         [ "Renato Biker"
@@ -1598,7 +1622,7 @@ c071 = NoDraws
         , "Paleke"
         , "Krys TOFF"
         , "JTK"
-        --, "AMG"  -- DSQ
+        , "AMG"  -- DSQ
         ]
 c072 = NoDraws
         [ "Ayrton"
@@ -1637,8 +1661,8 @@ c074 = WithDraws
         , flip Result 7 "AbuRaf70"
         , flip Result 8 "JTK"
         , flip Result 9 "Paleke"
-        --, flip Result 10 "Mark Nailwood (ghost)"  -- DSQ
-        --, flip Result 10 "Geovani da Silva (ghost)"  -- DSQ
+        , flip Result 10 "Mark Nailwood (ghost)"  -- DSQ
+        , flip Result 10 "Geovani da Silva (ghost)"  -- DSQ
         ]
 c075 = NoDraws
         [ "CTG"
@@ -1696,10 +1720,10 @@ c079 = NoDraws
         , "Zak McKracken"
         , "SuperBrian"
         , "SergioBaro"
-        --, "Simon82"  -- Rule #2 exclusion
+        , "Simon82"  -- Rule #2 exclusion
         , "satanziege"
         , "JTK"
-        --, "Bonzai Joe"  -- Rule #2 exclusion
+        , "Bonzai Joe"  -- Rule #2 exclusion
         ]
 c080 = NoDraws
         [ "Ayrton"
@@ -1729,7 +1753,7 @@ c081 = NoDraws
         , "SuperBrian"
         , "Turkey"
         , "AMG"
-        --, "Freddy"  -- Rule #3 exclusion
+        , "Freddy"  -- Rule #3 exclusion
         ]
 c082 = NoDraws
         [ "Ayrton"
@@ -1748,8 +1772,8 @@ c082 = NoDraws
         , "Böbszlee"
         , "Turkey"
         , "AMG"
-        --, "Lene"  -- Rule #3 exclusion
-        --, "Marci"  -- Rule #3 exclusion
+        , "Lene"  -- Rule #3 exclusion
+        , "Marci"  -- Rule #3 exclusion
         ]
 c083 = NoDraws
         [ "Ayrton"
@@ -1764,8 +1788,8 @@ c083 = NoDraws
         , "Krys TOFF"
         , "Pavekiller"
         , "dstien"
-        --, "Antti"  -- Rule #3 exclusion
-        --, "Lene"  -- Rule #3 exclusion
+        , "Antti"  -- Rule #3 exclusion
+        , "Lene"  -- Rule #3 exclusion
         ]
 c084 = NoDraws
         [ "Ayrton"
@@ -1854,7 +1878,7 @@ c089 = NoDraws
         , "dstien"
         , "Krys TOFF"
         , "tgm"
-        --, "Fredmen67"  -- DSQ
+        , "Fredmen67"  -- DSQ
         ]
 c090 = NoDraws
         [ "Ayrton"
@@ -1869,7 +1893,7 @@ c090 = NoDraws
         , "AbuRaf70"
         , "Goblin"
         , "Krys TOFF"
-        --, "Fredmen67"  -- Rule #3 exclusion.
+        , "Fredmen67"  -- Rule #3 exclusion.
         ]
 c091 = NoDraws
         [ "Bonzai Joe"
@@ -1954,7 +1978,7 @@ c094 = NoDraws
         , "satanziege"
         , "firefoxie"
         , "HTE"
-        --, "Cyberman"  -- Rule #3 exclusion.
+        , "Cyberman"  -- Rule #3 exclusion.
         ]
 c095 = NoDraws
         [ "Duplode"
@@ -2032,8 +2056,8 @@ c099 = NoDraws
         , "JoSi"
         , "Zak McKracken"
         , "PedroAntonio"
-        --, "satanziege"  -- Rule #3 exclusion
-        --, "Overdrijf"  -- DSQ
+        , "satanziege"  -- Rule #3 exclusion
+        , "Overdrijf"  -- DSQ
         ]
 c100 = NoDraws
         [ "Ayrton"
@@ -2087,7 +2111,7 @@ c102 = NoDraws
         , "SuperBrian"
         , "Zak McKracken"
         , "Roy Wiegerinck"  -- "Reiger"
-        --, "dstien"  -- Rule #3 exclusion
+        , "dstien"  -- Rule #3 exclusion
         ]
 c103 = NoDraws
         [ "Duplode"
@@ -2117,7 +2141,7 @@ c104 = NoDraws
         , "Pitman"
         , "PedroAntonio"
         , "dstien"
-        --, "satanziege"  -- Rule #3 exclusion
+        , "satanziege"  -- Rule #3 exclusion
         ]
 c105 = NoDraws
         [ "Gutix"
@@ -2132,7 +2156,7 @@ c105 = NoDraws
         , "PedroAntonio"
         , "Pitman"
         , "dstien"
-        --, "satanziege"  -- Rule #3 exclusion
+        , "satanziege"  -- Rule #3 exclusion
         ]
 c106 = NoDraws
         [ "Gutix"
@@ -2160,7 +2184,7 @@ c107 = NoDraws
         , "dstien"
         , "satanziege"
         , "Lene"
-        --, "Fredmen67"  -- Rule #3 exclusion
+        , "Fredmen67"  -- Rule #3 exclusion
         ]
 c108 = NoDraws
         [ "Gutix"
@@ -2201,8 +2225,8 @@ c110 = NoDraws
         , "dstien"
         , "Zak McKracken"
         , "Pitman"
-        --, "satanziege"  -- Rule #3 exclusion
-        --, "darkmaster"  -- DSQ
+        , "satanziege"  -- Rule #3 exclusion
+        , "darkmaster"  -- DSQ
         ]
 c111 = NoDraws
         [ "Gutix"
@@ -2289,7 +2313,7 @@ c116 = NoDraws
         , "dstien"
         , "Mingva"
         , "satanziege"
-        --, "Pitman"  -- Rule #3 exclusion
+        , "Pitman"  -- Rule #3 exclusion
         ]
 c117 = NoDraws
         [ "Duplode"
@@ -2301,7 +2325,7 @@ c117 = NoDraws
         , "Alan Rotoi"
         , "Crazy Jimmy"  -- "Flying Dutchman"
         , "Pitman"
-        --, "satanziege"  -- Rule #3 exclusion
+        , "satanziege"  -- Rule #3 exclusion
         ]
 c118 = NoDraws
         [ "Alan Rotoi"
@@ -2324,8 +2348,8 @@ c119 = NoDraws
         , "Zak McKracken"
         , "dstien"
         , "satanziege"
-        --, "Sanity"  -- Rule #3 exclusion
-        --, "Fredmen67"  -- Rule #3 exclusion
+        , "Sanity"  -- Rule #3 exclusion
+        , "Fredmen67"  -- Rule #3 exclusion
         ]
 c120 = NoDraws
         [ "Duplode"
@@ -2334,8 +2358,8 @@ c120 = NoDraws
         , "AbuRaf70"
         , "satanziege"
         , "Pitman"
-        --, "Shorty"  -- Rule #3 exclusion
-        --, "Sanity"  -- DSQ
+        , "Shorty"  -- Rule #3 exclusion
+        , "Sanity"  -- DSQ
         ]
 c121 = NoDraws
         [ "Duplode"
@@ -2374,7 +2398,7 @@ c123 = NoDraws
         , "oscar"
         , "dstien"
         , "satanziege"
-        --, "grisznik"  -- Rule #3 exclusion
+        , "grisznik"  -- Rule #3 exclusion
         ]
 c124 = NoDraws
         [ "Duplode"
@@ -2405,7 +2429,7 @@ c125 = NoDraws
         , "Gagarin"
         , "Shorty"
         , "satanziege"
-        --, "N. Oliveira"  -- Rule #3 exclusion
+        , "N. Oliveira"  -- Rule #3 exclusion
         ]
 c126 = NoDraws
         [ "Duplode"
@@ -2437,7 +2461,7 @@ c127 = NoDraws
         , "Alan Rotoi"
         , "dstien"
         , "Pitman"
-        --, "Shorty"  -- Rule #3 exclusion
+        , "Shorty"  -- Rule #3 exclusion
         ]
 c128 = NoDraws
         [ "Duplode"
@@ -2450,9 +2474,9 @@ c128 = NoDraws
         , "AbuRaf70"
         , "Zak McKracken"
         , "dstien"
-        --, "Pitman"  -- Rule #3 exclusion
-        --, "Usrin"  -- Rule #3 exclusion
-        --, "Shorty"  -- Rule #3 exclusion
+        , "Pitman"  -- Rule #3 exclusion
+        , "Usrin"  -- Rule #3 exclusion
+        , "Shorty"  -- Rule #3 exclusion
         ]
 c129 = NoDraws
         [ "Gutix"
@@ -2492,7 +2516,7 @@ c131 = WithDraws
         , flip Result 10 "dstien"
         , flip Result 11 "Ivan"
         , flip Result 12 "satanziege"
-        --, flip Result 13 "Alecu"  -- Rule #3 exclusion
+        , flip Result 13 "Alecu"  -- Rule #3 exclusion
         ]
 c132 = NoDraws
         [ "Renato Biker"
@@ -2621,7 +2645,7 @@ c140 = NoDraws
         , "ADPunk"
         , "dreadnaut"
         , "dstien"
-        --, "JoSi"  -- Rule #3 exclusion
+        , "JoSi"  -- Rule #3 exclusion
         ]
 c141 = NoDraws
         [ "Renato Biker"
@@ -2718,7 +2742,7 @@ c147 = NoDraws
         , "AbuRaf70"
         , "dreadnaut"
         , "Zak McKracken"
-        --, "dstien"  -- Rule #3 exclusion
+        , "dstien"  -- Rule #3 exclusion
         ]
 c148 = NoDraws
         [ "Renato Biker"
@@ -2730,7 +2754,7 @@ c148 = NoDraws
         , "Zak McKracken"
         , "Alan Rotoi"
         , "dstien"
-        --, "satanziege"  -- Rule #3 exclusion
+        , "satanziege"  -- Rule #3 exclusion
         ]
 c149 = NoDraws
         [ "Renato Biker"
@@ -2815,8 +2839,8 @@ c153 = NoDraws
         , "dreadnaut"
         , "dstien"
         , "afullo"
-        --, "Alecu"  -- Alecu323  -- Rule #3 exclusion
-        --, "Bonzai Joe"  -- Rule #1 exclusion
+        , "Alecu"  -- Alecu323  -- Rule #3 exclusion
+        , "Bonzai Joe"  -- Rule #1 exclusion
         ]
 c154 = NoDraws
         [ "CTG"
@@ -2833,7 +2857,7 @@ c154 = NoDraws
         , "Alan Rotoi"
         , "Mingva"
         , "dstien"
-        --, "afullo"  -- Rule #3 exclusion
+        , "afullo"  -- Rule #3 exclusion
         ]
 c155 = NoDraws
         [ "CTG"
@@ -2848,7 +2872,7 @@ c155 = NoDraws
         , "dstien"
         , "AbuRaf70"
         , "afullo"
-        --, "Alan Rotoi"  -- Rule #3 exclusion
+        , "Alan Rotoi"  -- Rule #3 exclusion
         ]
 c156 = NoDraws
         [ "CTG"
@@ -2863,8 +2887,8 @@ c156 = NoDraws
         , "Mingva"
         , "dreadnaut"
         , "dstien"
-        --, "Alan Rotoi"  -- Rule #3 exclusion
-        --, "afullo"  -- Rule #3 exclusion
+        , "Alan Rotoi"  -- Rule #3 exclusion
+        , "afullo"  -- Rule #3 exclusion
         ]
 c157 = NoDraws
         [ "Duplode"
@@ -2914,7 +2938,7 @@ c159 = NoDraws
         , "dstien"
         , "Mingva"
         , "afullo"
-        --, "Alan Rotoi"  -- Rule #3 exclusion
+        , "Alan Rotoi"  -- Rule #3 exclusion
         ]
 c160 = NoDraws
         [ "CTG"
@@ -2925,8 +2949,8 @@ c160 = NoDraws
         , "dreadnaut"
         , "AbuRaf70"
         , "dstien"
-        --, "afullo"  -- Rule #3 exclusion
-        --, "Usrin"  -- Rule #3 exclusion
+        , "afullo"  -- Rule #3 exclusion
+        , "Usrin"  -- Rule #3 exclusion
         ]
 c161 = NoDraws
         [ "Akoss Poo"
@@ -2969,8 +2993,8 @@ c163 = NoDraws
         , "Shoegazing Leo"
         , "dstien"
         , "afullo"
-        --, "Mr. Stunt"  -- Rule #3 exclusion
-        --, "Vector"  -- Rule #1 exclusion
+        , "Mr. Stunt"  -- Rule #3 exclusion
+        , "Vector"  -- Rule #1 exclusion
         ]
 c164 = NoDraws
         [ "Akoss Poo"
@@ -3080,7 +3104,7 @@ c170 = NoDraws
         , "Kjotleik"
         , "afullo"
         , "SimpleM"
-        --, "Shorty"  -- Rule #3 exclusion
+        , "Shorty"  -- Rule #3 exclusion
         ]
 c171 = NoDraws
         [ "Duplode"
@@ -3109,7 +3133,7 @@ c172 = NoDraws
         , "dstien"
         , "PJ"
         , "afullo"
-        --, "Drathas"  -- Rule #1 exclusion
+        , "Drathas"  -- Rule #1 exclusion
         ]
 c173 = NoDraws
         [ "Duplode"
@@ -3190,9 +3214,9 @@ c178 = NoDraws
         , "Marco"
         , "dstien"
         , "dreadnaut"
-        --, "Shoegazing Leo"  -- Rule #3 exclusion
-        --, "FinRok"  -- Rule #2 exclusion
-        --, "afullo"  -- Rule #3 exclusion
+        , "Shoegazing Leo"  -- Rule #3 exclusion
+        , "FinRok"  -- Rule #2 exclusion
+        , "afullo"  -- Rule #3 exclusion
         ]
 c179 = NoDraws
         [ "Renato Biker"
@@ -3218,8 +3242,8 @@ c180 = NoDraws
         , "dstien"
         , "Shoegazing Leo"
         , "ninja750"
-        --, "Wanted77"  -- Rule #2b
-        --, "afullo"  -- Rule #3 exclusion
+        , "Wanted77"  -- Rule #2b
+        , "afullo"  -- Rule #3 exclusion
         ]
 c181 = NoDraws
         [ "Duplode"
@@ -3231,7 +3255,7 @@ c181 = NoDraws
         , "dreadnaut"
         , "Cas"
         , "Shoegazing Leo"
-        --, "afullo"  -- Rule #3 exclusion
+        , "afullo"  -- Rule #3 exclusion
         ]
 c182 = NoDraws
         [ "Marco"
@@ -3261,7 +3285,7 @@ c183 = NoDraws
         , "Gilmash"
         , "OctaLM"
         , "Lulisa"
-        --, "afullo"  -- Rule #3 exclusion
+        , "afullo"  -- Rule #3 exclusion
         ]
 c184 = NoDraws
         [ "Marco"
@@ -3273,7 +3297,7 @@ c184 = NoDraws
         , "dreadnaut"
         , "Shoegazing Leo"
         , "afullo"
-        --, "Alecu"  -- Rule #3 exclusion
+        , "Alecu"  -- Rule #3 exclusion
         ]
 c185 = NoDraws
         [ "Marco"
@@ -3328,7 +3352,7 @@ c188 = NoDraws
         , "arturbmallman"
         , "Shoegazing Leo"
         , "afullo"
-        --, "emandrada"  -- Rule #1 exclusion
+        , "emandrada"  -- Rule #1 exclusion
         ]
 c189 = NoDraws
         [ "FinRok"
@@ -3350,11 +3374,11 @@ c190 = NoDraws
         , "dreadnaut"
         , "Imperas"
         , "arturbmallman"
-        --, "KaoS"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "Cas"
         , "Shoegazing Leo"
-        --, "afullo"  -- Rule #3 exclusion
-        --, "Motig"  -- Rule #3 exclusion
+        , "afullo"  -- Rule #3 exclusion
+        , "Motig"  -- Rule #3 exclusion
         ]
 c191 = NoDraws
         [ "Duplode"
@@ -3365,9 +3389,9 @@ c191 = NoDraws
         , "arturbmallman"
         , "Shoegazing Leo"
         , "Cas"
-        --, "Marco"  -- Rule #3 exclusion
-        --, "KaoS"  -- Rule #3 exclusion
-        --, "afullo"  -- Rule #2 exclusion
+        , "Marco"  -- Rule #3 exclusion
+        , "KaoS"  -- Rule #3 exclusion
+        , "afullo"  -- Rule #2 exclusion
         ]
 c192 = NoDraws
         [ "Marco"
@@ -3380,7 +3404,7 @@ c192 = NoDraws
         , "Nilex"
         , "Shoegazing Leo"
         , "Motig"
-        --, "afullo"  -- Rule #1 exclusion
+        , "afullo"  -- Rule #1 exclusion
         ]
 c193 = NoDraws
         [ "FinRok"
@@ -3388,10 +3412,10 @@ c193 = NoDraws
         , "dreadnaut"
         , "Imperas"
         , "Seeker1982"
-        --, "Marco"  -- Rule #2b
+        , "Marco"  -- Rule #2b
         , "Cas"
         , "Shoegazing Leo"
-        --, "dosbox92"  -- Rule #2b
+        , "dosbox92"  -- Rule #2b
         , "afullo"
         ]
 c194 = NoDraws
@@ -3451,7 +3475,7 @@ c198 = NoDraws
         , "Cas"
         , "Shoegazing Leo"
         , "Motig"
-        --, "Svenne"  -- Rule #3 exclusion
+        , "Svenne"  -- Rule #3 exclusion
         ]
 c199 = NoDraws
         [ "Duplode"
@@ -3475,8 +3499,8 @@ c200 = NoDraws
         , "afullo"
         , "Cas"
         , "Shoegazing Leo"
-        --, "Alan Rotoi"  -- Rule #3 exclusion
-        --, "Motig"  -- Rule #3 exclusion
+        , "Alan Rotoi"  -- Rule #3 exclusion
+        , "Motig"  -- Rule #3 exclusion
         ]
 c201 = NoDraws
         [ "FinRok"
@@ -3490,7 +3514,7 @@ c201 = NoDraws
         , "arturbmallman"
         , "Shoegazing Leo"
         , "GTAMan15"
-        --, "KaoS"  -- Rule #2 exclusion
+        , "KaoS"  -- Rule #2 exclusion
         , "Motig"
         ]
 c202 = NoDraws
@@ -3505,7 +3529,7 @@ c202 = NoDraws
         , "arturbmallman"
         , "Shoegazing Leo"
         , "GTAMan15"
-        --, "Marco"  -- Rule #2 exclusion
+        , "Marco"  -- Rule #2 exclusion
         , "Motig"
         , "Chacan"
         ]
@@ -3531,7 +3555,7 @@ c204 = NoDraws
         , "Shoegazing Leo"
         , "Cas"
         , "GTAMan15"
-        --, "Alan Rotoi"  -- Rule #3 exclusion
+        , "Alan Rotoi"  -- Rule #3 exclusion
         ]
 c205 = NoDraws
         [ "CTG"
@@ -3564,7 +3588,7 @@ c207 = NoDraws
         , "dosbox92"
         , "afullo"
         , "Cas"
-        --, "KaoS"  -- Rule #3
+        , "KaoS"
         , "Shoegazing Leo"
         ]
 c208 = NoDraws
@@ -3593,10 +3617,10 @@ c209 = WithDraws
         , flip Result 9 "afullo"
         , flip Result 11 "Heretic"
         , flip Result 12 "Shoegazing Leo"
-        --, flip Result 13 "KaoS"  -- Rule #2b
+        , flip Result 13 "KaoS"  -- Rule #2b
         , flip Result 14 "Motig"
         , flip Result 15 "GTAMan15"
-        --, flip Result 16 "Stan 286XT"  -- Rule #3 exclusion
+        , flip Result 16 "Stan 286XT"  -- Rule #3 exclusion
         ]
 c210 = NoDraws
         [ "dreadnaut"
@@ -3612,7 +3636,7 @@ c210 = NoDraws
         , "Shoegazing Leo"
         , "Smrtka"
         , "Motig"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 c211 = NoDraws
         [ "Marco"
@@ -3629,7 +3653,7 @@ c211 = NoDraws
         , "Shoegazing Leo"
         , "fx_undertaker"
         , "Motig"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 c212 = NoDraws
         [ "FinRok"
@@ -3644,7 +3668,7 @@ c212 = NoDraws
         , "Cas"
         , "sd4000"
         , "Shoegazing Leo"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 c213 = NoDraws
         [ "FinRok"
@@ -3659,7 +3683,7 @@ c213 = NoDraws
         , "sd4000"
         , "Shoegazing Leo"
         , "Heretic"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 c214 = NoDraws
         [ "FinRok"
@@ -3675,7 +3699,7 @@ c214 = NoDraws
         , "KaoS"
         , "Shoegazing Leo"
         , "GTAMan15"
-        --, "Stan 286XT"  -- Rule #2 exclusion
+        , "Stan 286XT"  -- Rule #2 exclusion
         , "sd4000"
         ]
 c215 = NoDraws
@@ -3691,7 +3715,7 @@ c215 = NoDraws
         , "Cas"
         , "sd4000"
         , "Heretic"
-        --, "Stan 286XT"  -- Rule #2b
+        , "Stan 286XT"  -- Rule #2b
         ]
 c216 = NoDraws
         [ "Marco"
@@ -3706,7 +3730,7 @@ c216 = NoDraws
         , "Shoegazing Leo"
         , "sd4000"
         , "Motig"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 c217 = NoDraws
         [ "Duplode"
@@ -3721,7 +3745,7 @@ c217 = NoDraws
         , "sd4000"
         , "Shoegazing Leo"
         , "satanziege"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 c218 = NoDraws
         [ "Marco"
@@ -3736,7 +3760,7 @@ c218 = NoDraws
         , "Cas"
         , "sd4000"
         , "Shoegazing Leo"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #2 exclusion
         , "Motig"
         ]
 c219 = WithDraws
@@ -3752,7 +3776,7 @@ c219 = WithDraws
         ,flip Result 10 "Heretic"
         ,flip Result 11 "sd4000"
         ,flip Result 12 "Shoegazing Leo"
-        --,flip Result 13 "Stan 286XT"  -- Rule #3 exclusion
+        ,flip Result 13 "Stan 286XT"  -- Rule #3 exclusion
         ]
 c220 = NoDraws
         [ "CTG"
@@ -3766,8 +3790,8 @@ c220 = NoDraws
         , "Heretic"
         , "sd4000"
         , "Shoegazing Leo"
-        --, "Alan Rotoi"  -- Rule #3 exclusion
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Alan Rotoi"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 c221 = NoDraws
         [ "FinRok"
@@ -3781,10 +3805,10 @@ c221 = NoDraws
         , "afullo"
         , "sd4000"
         , "Shoegazing Leo"
-        --, "Marco"  -- Rule #2 exclusion
+        , "Marco"  -- Rule #2 exclusion
         , "Cas"
-        --, "GTAMan15"  -- Rule #3 exclusion
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "GTAMan15"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 c222 = WithDraws
         [flip Result 1 "Duplode"
@@ -3794,12 +3818,12 @@ c222 = WithDraws
         ,flip Result 5 "Stingray86"
         ,flip Result 6 "Heretic"
         ,flip Result 7 "afullo"
-        --,flip Result 8 "KaoS"  -- Rule #2b
+        ,flip Result 8 "KaoS"  -- Rule #2b
         ,flip Result 9 "Shoegazing Leo"
         ,flip Result 10 "sd4000"
         ,flip Result 11 "Cas"
         ,flip Result 12 "satanziege"
-        --,flip Result 13 "Stan 286XT"  -- Rule #3 exclusion
+        ,flip Result 13 "Stan 286XT"  -- Rule #3 exclusion
         ]
 c223 = NoDraws
         [ "Duplode"
@@ -3807,15 +3831,15 @@ c223 = NoDraws
         , "CTG"
         , "Stingray86"
         , "Overdrijf"
-        --, "Marco"  -- Rule #2b
+        , "Marco"  -- Rule #2b
         , "dreadnaut"
         , "afullo"
-        --, "KaoS"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "Cas"
         , "sd4000"
         , "Shoegazing Leo"
         , "HL96T"
-        --, "Stan 286XT"  -- Rule #2b
+        , "Stan 286XT"  -- Rule #2b
         ]
 c224 = NoDraws
         [ "Duplode"
@@ -3828,7 +3852,7 @@ c224 = NoDraws
         , "Seeker1982"
         , "afullo"
         , "Cas"
-        --, "KaoS"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "sd4000"
         , "HL96T"
         , "Shoegazing Leo"
@@ -3846,8 +3870,8 @@ c225 = NoDraws
         , "Cas"
         , "sd4000"
         , "Shoegazing Leo"
-        --, "KaoS"  -- Rule #3 exclusion
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "KaoS"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 
 c226 = NoDraws
@@ -3857,15 +3881,15 @@ c226 = NoDraws
         , "CTG"
         , "dreadnaut"
         , "Stingray86"
-        --, "Marco"  -- Rule #2b
-        --, "KaoS"  -- Rule #2b
+        , "Marco"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "afullo"
         , "Heretic"
         , "Alan Rotoi"
-        --, "Cas"  -- Rule #3 exclusion
+        , "Cas"  -- Rule #3 exclusion
         , "Shoegazing Leo"
-        --, "Stan 286XT"  -- Rule #3 exclusion
-        --, "Chacan"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
+        , "Chacan"  -- Rule #3 exclusion
         ]
 
 c227 = NoDraws
@@ -3893,8 +3917,8 @@ c228 = NoDraws
         , "Heretic"
         , "afullo"
         , "Shoegazing Leo"
-        --, "Cas"  -- Rule #3 exclusion
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Cas"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 
 c229 = NoDraws
@@ -3910,11 +3934,11 @@ c229 = NoDraws
         , "dreadnaut"
         , "afullo"
         , "KyLiE"
-        --, "KaoS"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "Straycat"
         , "Cas"
         , "Shoegazing Leo"
-        --, "Zak McKracken"  -- Rule #2b
+        , "Zak McKracken"  -- Rule #2b
         , "GTAMan15"
         , "Stan 286XT"
         ]
@@ -3930,11 +3954,11 @@ c230 = NoDraws
         , "Overdrijf"
         , "Alan Rotoi"
         , "afullo"
-        --, "Zak McKracken"  -- Rule #2b
+        , "Zak McKracken"  -- Rule #2b
         , "Shoegazing Leo"
         , "Cas"
         , "Straycat"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 
 c231 = NoDraws
@@ -3950,9 +3974,9 @@ c231 = NoDraws
         , "afullo"
         , "Straycat"
         , "Cas"
-        --, "KaoS"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "Shoegazing Leo"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 
 c232 = NoDraws
@@ -3965,12 +3989,12 @@ c232 = NoDraws
         , "Heretic"
         , "KyLiE"
         , "Stingray86"
-        --, "KaoS"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "Straycat"
         , "Shoegazing Leo"
         , "Cas"
         , "GTAMan15"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 
 c233 = NoDraws
@@ -3987,7 +4011,7 @@ c233 = NoDraws
         , "Cas"
         , "Zak McKracken"
         , "Shoegazing Leo"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 
 c234 = NoDraws
@@ -4010,9 +4034,9 @@ c234 = NoDraws
         , "Igor"
         , "matamo"
         , "Daniel3D"
-        --, "KaoS"  -- # Rule #3 exclusion
-        --, "Straycat"  -- Rule #3 exclusion
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "KaoS"  -- # Rule #3 exclusion
+        , "Straycat"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 
 c235 = NoDraws
@@ -4027,17 +4051,17 @@ c235 = NoDraws
         , "Zapper"
         , "afullo"
         , "Heretic"
-        --, "Zak McKracken"  -- Rule #2b
+        , "Zak McKracken"  -- Rule #2b
         , "Cool Gaddafi"
         , "Shoegazing Leo"
         , "Cas"
-        --, "KaoS"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "Straycat"
         , "matamo"
         , "Daniel3D"
         , "Igor"
         , "ZdnBurns"
-        --, "Stan 286XT"  -- Rule #2b
+        , "Stan 286XT"  -- Rule #2b
         ]
 
 c236 = NoDraws
@@ -4055,13 +4079,13 @@ c236 = NoDraws
         , "afullo"
         , "Cas"
         , "Shoegazing Leo"
-        --, "Seeker1982"  -- Rule #2b
-        --, "Marco"  -- Rule #2b
-        --, "KaoS"  -- Rule #2b
+        , "Seeker1982"  -- Rule #2b
+        , "Marco"  -- Rule #2b
+        , "KaoS"  -- Rule #2b
         , "Igor"
-        --, "Straycat"  -- Rule #3 exclusion
+        , "Straycat"  -- Rule #3 exclusion
         , "Johnny Alaska"
-        --, "Stan 286XT"  -- Rule #3 exclusion
+        , "Stan 286XT"  -- Rule #3 exclusion
         ]
 
 c237 = NoDraws
@@ -4082,8 +4106,8 @@ c237 = NoDraws
         , "Shoegazing Leo"
         , "Igor"
         , "matamo"
-        --, "KaoS"  -- Rule #2
-        --, "Marco"  -- Rule #2
+        , "KaoS"  -- Rule #2
+        , "Marco"  -- Rule #2
         , "Stan 286XT"
         ]
 
@@ -4105,10 +4129,10 @@ c238 = NoDraws
         , "matamo"
         , "Stan 286XT"
         , "Shoegazing Leo"
-        --, "KaoS"  -- Rule #2
+        , "KaoS"  -- Rule #2
         , "AMG"
         , "satanziege"
-        --, "Straycat"  -- Rule #3
+        , "Straycat"  -- Rule #3
         ]
 
 c239 = NoDraws
@@ -4125,9 +4149,9 @@ c239 = NoDraws
         , "Cas"
         , "1337haxoryt"
         , "Shoegazing Leo"
-        --, "KaoS"  -- Rule #2
+        , "KaoS"  -- Rule #2
         , "Igor"
-        --, "Stan 286XT"  -- Rule #3
+        , "Stan 286XT"  -- Rule #3
         ]
 
 c240 = NoDraws
@@ -4144,8 +4168,8 @@ c240 = NoDraws
         , "Shoegazing Leo"
         , "Cas"
         , "1337haxoryt"
-        --, "KaoS"  -- Rule #3
-        --, "Stan 286XT"  -- Rule #3
+        , "KaoS"  -- Rule #3
+        , "Stan 286XT"  -- Rule #3
         ]
 
 c241 = NoDraws
@@ -4160,8 +4184,8 @@ c241 = NoDraws
         , "afullo"
         , "Cas"
         , "Shoegazing Leo"
-        --, "KaoS"  -- Rule #3
-        --, "Stan 286XT"  -- Rule #3
+        , "KaoS"  -- Rule #3
+        , "Stan 286XT"  -- Rule #3
         ]
 
 c242 = NoDraws
@@ -4174,9 +4198,9 @@ c242 = NoDraws
         , "Heretic"
         , "dreadnaut"
         , "Cas"
-        --, "Shoegazing Leo"  -- Rule #3
-        --, "KaoS"  -- Rule #2
-        --, "Stan 286XT"  -- Rule #3
+        , "Shoegazing Leo"  -- Rule #3
+        , "KaoS"  -- Rule #2
+        , "Stan 286XT"  -- Rule #3
         ]
 
 c243 = NoDraws
@@ -4192,9 +4216,9 @@ c243 = NoDraws
         , "Cas"
         , "Heretic"
         , "Shoegazing Leo"
-        --, "Marco"  -- Rule #2
+        , "Marco"  -- Rule #2
         , "Igor"
         , "Daniel3D"
-        --, "Stan 286XT"  -- Rule #3
-        --, "GTAMan15"  -- Rule #3
+        , "Stan 286XT"  -- Rule #3
+        , "GTAMan15"  -- Rule #3
         ]
