@@ -39,7 +39,7 @@ executable elo-zs
                      , Util.Lone
                      , Util.Combinations
   -- other-extensions:
-  build-depends:       base >=4.13 && <4.17
+  build-depends:       base >=4.13 && <4.18
                      , containers
                      , comonad
                      , text
