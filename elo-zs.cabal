@@ -16,8 +16,8 @@ copyright:           MIT
 category:            Game, Statistics, Simulation
 build-type:          Simple
 extra-source-files:  CHANGELOG.md
+                   , Zak/zakstunts-race-positions.csv
 data-dir:            .
-data-files:          Zak/zakstunts-race-positions.csv
 
 executable elo-zs
   main-is:             Main.hs
