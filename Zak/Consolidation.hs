@@ -44,6 +44,8 @@ testData opts = processRaceResults <$> crudeData
         WithDraws ps -> ps
 
 -- Usage: demoToCsv "all-results.csv" resultsTable
+-- Note the resulting CSV has row headers, unlike the one expected by
+-- Zak.Results.
 resultsTable :: Tab.Table String String String
 resultsTable = processRaceResults crudeData
     where

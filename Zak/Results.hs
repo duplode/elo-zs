@@ -104,14 +104,14 @@ zakRawData = $(embedFile ("Zak" </> "zakstunts-race-positions.csv"))
 -- to the removal of excluded results (ghosts aren't handled here yet).
 zakParsedCsv :: [[Result PipId Int]]
 zakParsedCsv = V.toList zakDecoded
-    & groupBy ((==) `on` (\(_,t,_,_,_,_) -> t))
+    & groupBy ((==) `on` (\(t,_,_,_,_) -> t))
     & fmap (mapMaybe mkResult)
     where
-    zakDecoded :: V.Vector (Int, T.Text, PipId, Int, Int, Maybe T.Text)
+    zakDecoded :: V.Vector (T.Text, PipId, Int, Int, Maybe T.Text)
     zakDecoded = case Csv.decode Csv.HasHeader (BL.fromStrict zakRawData) of
         Right dat -> dat
         Left _ -> error "Bad data from Zak/zakstunts-race-positions.csv"
-    mkResult (_, t, p, x, _, ex) = case ex of
+    mkResult (t, p, x, _, ex) = case ex of
         Nothing -> Just (Result p x)
         Just "MSC" -> Just (Result p x)
         Just _ -> Nothing
