@@ -20,6 +20,7 @@ extra-source-files:  CHANGELOG.md
 data-dir:            data
 
 executable elo-zs
+  hs-source-dirs:      src
   main-is:             Main.hs
   other-modules:       Analysis
                      , Analysis.PerfModel
