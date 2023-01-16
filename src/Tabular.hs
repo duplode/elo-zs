@@ -7,11 +7,14 @@ module Tabular
     ( arrangeTable
     , demoPretty
     , demoToCsv
+    , demoToHtml
     ) where
 
 import qualified Text.Tabular as Tab
 import qualified Text.Tabular.AsciiArt as Tab.Ascii
 import qualified Text.Tabular.Csv as Tab.Csv
+import qualified Text.Tabular.Html as Tab.Html
+import Text.Html as Html (toHtmlFromList)
 
 -- | Arrange a ranking or listing as a 'Table'.
 arrangeTable
@@ -32,3 +35,8 @@ demoPretty t = putStrLn (Tab.Ascii.render id id id t)
 -- | Prints a 'Table' to a CSV file.
 demoToCsv :: FilePath -> Tab.Table String String String -> IO ()
 demoToCsv path t = writeFile path (Tab.Csv.render id id id t)
+
+-- | Prints a 'Table' to an HTML fragment file.
+demoToHtml :: FilePath -> Tab.Table String String String -> IO ()
+demoToHtml path t = writeFile path . show $
+    Tab.Html.render toHtmlFromList toHtmlFromList toHtmlFromList t

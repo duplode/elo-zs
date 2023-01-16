@@ -36,16 +36,32 @@ import Data.Maybe
 import System.Random.MWC
 import Control.Monad.State.Strict
 
-demoHighest :: EloOptions -> Tab.Table String String String
-demoHighest eopts = testData def
+runHighest :: EloOptions -> [(PipId, AtRace Double)]
+runHighest eopts = testData def
     & L.fold
         (highestPerPip `o`
             (distillRatings def <$> finalRatings eopts))
     & Map.toList & sortBy (comparing (Down . extract . snd))
+
+demoHighest :: EloOptions -> Tab.Table String String String
+demoHighest eopts = runHighest eopts
     & arrangeTable
         (fmap show . zipWith const [1..])
         ["Racer", "Race", "Rating"]
         (\(p, AtRace ri rtg) -> [T.unpack p, toZakLabel ri, show rtg])
+
+-- | Highest-ever ranking, with default options and rounded down ratings.
+--
+-- The ratings are rounded down because specific rating values might be taken
+-- as milestones. That being so, it wouldn't be appropriate if 2000 points on
+-- a published table turned out to actually be 1999.57413.
+demoHighestForPub :: Tab.Table String String String
+demoHighestForPub = runHighest def
+    & arrangeTable
+        (fmap show . zipWith const [1..])
+        ["Racer", "Race", "Rating"]
+        (\(p, AtRace ri rtg) ->
+            [T.unpack p, toZakLabel ri, show @Integer (floor rtg)])
 
 demoAccumulated :: EloOptions -> Tab.Table String String String
 demoAccumulated eopts = testData def
@@ -169,6 +185,32 @@ demoRanking eopts ppopts = runTest eopts def ppopts
         (fmap show . zipWith const [1..])
         ["Racer", "Rating"]
         (\(p, rtg) -> [T.unpack p, show rtg])
+
+-- | Sorted racer-rating pairs, suitable for publication.
+runTestForPub
+    :: Maybe RaceIx -- ^ Selected race.
+    -> Int -- ^ Activity cut.
+    -> [(PipId, Integer)]
+runTestForPub selRace aCut = runTest def def
+        def { selectedRace = selRace, activityCut = Just aCut }
+    & fmap (fmap floor)
+
+demoTestForPub :: Maybe RaceIx -> Int -> Tab.Table String String String
+demoTestForPub selRace aCut = runTestForPub selRace aCut
+    & arrangeTable
+        (fmap show . zipWith const [1..])
+        ["Racer", "Rating"]
+        (\(p, rtg) -> [T.unpack p, show rtg])
+
+-- | Sorted racer-rating pairs for the latest race, suitable for ranking
+-- publication.
+runCurrentForPub
+    :: Int -- ^ Activity cut.
+    -> [(PipId, Integer)]
+runCurrentForPub = runTestForPub Nothing
+
+demoRankingForPub :: Int -> Tab.Table String String String
+demoRankingForPub = demoTestForPub Nothing
 
 -- | Current rating and past peak rating for racers active within the last
 -- 12 races.

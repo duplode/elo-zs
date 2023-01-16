@@ -68,5 +68,6 @@ executable elo-zs
                      , cassava
                      , file-embed >= 0.0.10
                      , bytestring
+                     , html
   -- hs-source-dirs:
   default-language:    Haskell2010

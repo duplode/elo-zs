@@ -24,6 +24,7 @@ last-seed.txt
 test2.csv
 *.csv
 .~*
+test*.html
 
 *.rpl
 *.trk
