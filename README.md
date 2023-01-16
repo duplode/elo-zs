@@ -40,9 +40,10 @@ topic, including the Glicko system, as well as Microsoft's TrueSkill). In this
 code base, such limitations are, to an extent, addressed by various local
 measures, some of them principled, and some of a more ad hoc nature.
 
-The `stuntshu-announcement.txt` file reproduces the forum post through which
-this project was first presented to the Stunts community. It documents the
-business domain design decisions from a sporting perspective.
+The `docs/stuntshu-announcement.txt` file reproduces the forum post
+through which this project was first presented to the Stunts community.
+It documents the business domain design decisions from a sporting
+perspective.
 
 Thanks to the worldwide Stunts community, whose élan runs through this
 codebase.

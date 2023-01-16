@@ -98,7 +98,8 @@ ghostList =
     ]
 
 zakRawData :: B.ByteString
-zakRawData = $(embedFile ("Zak" </> "zakstunts-race-positions.csv"))
+zakRawData = $(makeRelativeToProject
+    ("data" </> "Zak" </> "zakstunts-race-positions.csv") >>= embedFile)
 
 -- | Data from the ZakStunts results Csv, grouped by race and processed up
 -- to the removal of excluded results (ghosts aren't handled here yet).

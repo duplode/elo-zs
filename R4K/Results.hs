@@ -26,6 +26,9 @@ import System.Directory
 import System.FilePath
 import Control.Monad
 
+-- Note that for the moment what follows is strictly for testing. At a
+-- minimum, we'd have to fix the hardcoded paths.
+
 -- | Preprocessed sample data, ready for consumption.
 testData :: IO [NE.NonEmpty Standing]
 testData = (traverse
