@@ -7,6 +7,7 @@
 module Zak where
 
 import Analysis
+import Analysis.Common (distillRatings, distillRatingsAssocList)
 import Engine
 import Types
 import Tidying
