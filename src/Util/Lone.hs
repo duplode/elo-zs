@@ -9,7 +9,7 @@
 -- to do is simulating it through 'Adjunction'. Certainly it would not be
 -- difficult to forgo the generalised combinators and stick with concrete
 -- signatures. That, however, would require compromising on the interface
--- and ergonomics of 'foldTransversally' in the analysis code here, and
+-- and ergonomics of 'foldThroughLone' in the analysis code here, and
 -- for our current purposes I don't see a need for compromising.
 module Util.Lone
     ( Lone
