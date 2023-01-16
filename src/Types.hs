@@ -108,8 +108,8 @@ type FaceOff' = FaceOff PipId
 -- | Parameters for Elo and simulation engines.
 data EloOptions = EloOptions
     {   -- | Modulation (or, as Glickman puts it, attenuation) factor for rating
-        -- changes. A value, such as 16, lower than the standard one for chess, 24
-        -- might be used to compensate for the high number of matches in a typical
+        -- changes. A value, such as 18, lower than the typical for chess, 24
+        -- might be used to compensate for the high number of matches in a
         -- race.
       eloModulation :: Double
         -- | How much weight should be given to matches between players far
@@ -132,8 +132,8 @@ data EloOptions = EloOptions
     , eloFullyProvisionalMatches :: Bool
         -- | The number of earlier events a player must have taken part in so
         -- that their rating isn't counted as provisional in the current event.
-        -- For instance, the default value of 5 means the rating ceases being
-        -- provisional after the fifth event, while 0 disables provisional
+        -- For instance, the default value of 12 means the rating ceases being
+        -- provisional after the twelfth event, while 0 disables provisional
         -- ratings.
     , eloProvisionalGraduation :: Int
         -- | Average correction factor for the modulation in matches involving
