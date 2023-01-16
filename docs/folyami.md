@@ -17,7 +17,7 @@ competitions and, in particular, [ZakStunts](https://zak.stunts.hu).
 An implementation of Folyami can be found at
 <https://github.com/duplode/elo-zs>. While it currently lacks a polished
 interface, it is otherwise fully functional. Note that the description
-here correspons to the default configuration of the elo-zs program. The
+here corresponds to the default configuration of the elo-zs program. The
 implementation allows the various extra features of the Folyami system
 to be tuned, or even turned off to obtain a regular Elo system.
 
@@ -225,7 +225,7 @@ A few additional remarks:
 - Using different factors in matches between newcomers and settled
   racers means that Folyami doesn't always conserve the overall sum of
   rating points. While such a conservation is sometimes touted as a
-  fundamental property of Elo ratings, it only really aplies to the
+  fundamental property of Elo ratings, it only really applies to the
   ideal algorithm. The systems used in practice (for instance, by chess
   federations) often have $K$ varying with experience or ratings, with
   similar effects on the overall sum. Besides, given that players can
@@ -347,10 +347,10 @@ for the time being, a matter to be settled empirically. While
 [experiments](https://forum.stunts.hu/index.php?topic=3847) suggest 7
 can be a plausible shape for single laps in NoRH Stunts, the adequacy of
 a value is heavily dependent on track, car and competition rules. The
-Folyani system uses a shape of 3, which appears to make for a simple yet
+Folyami system uses a shape of 3, which appears to make for a simple yet
 minimally reasonable model for the ratings.
 
-The Folyani victory probability/expected score formula, which therefore
+The Folyami victory probability/expected score formula, which therefore
 follows from a shape 3 gamma performance model, is:
 
 $$S_{X} = 6W_{X}^5 - 15W_{X}^4 + 10W_{X}^3$$
@@ -370,13 +370,13 @@ In these formulas:
 - $c = \frac{8}{15}\left(1 - \frac{2}{3(2\pi\sqrt{29}-3)}\right) \approx
   0.5188$ is chosen so that $S_{X}$ is as close as possible to the Elo
   expected score. The point of such an adjustment is keeping Elo and
-  Folyani ratings broadly comparable given a common choice of $K$.
+  Folyami ratings broadly comparable given a common choice of $K$.
   Gamma shapes other than 3 would require a different value of $c$ to
   play this role.
 - Given $\alpha = \frac{\ln 10}{400}$, we have $c\alpha \approx
   0.002986$.
 
-The graph below shows the Elo and Folyani expected scores, as well as
+The graph below shows the Elo and Folyami expected scores, as well as
 the bare shape 3 gamma victory probability without the adjustment by
 $c$.
 
@@ -399,11 +399,11 @@ w(x) = 1/(exp(-c*a*x)+1)
 f(x) = 6*w(x)**5 - 15*w(x)**4 + 10*w(x)**3
 
 plot e(x) title 'Elo (shape 1)' ls 2,\
-    f(x) title 'Folyani (shape 3)' ls 8,\
+    f(x) title 'Folyami (shape 3)' ls 8,\
     g(x) title 'shape 3, unadjusted' ls 5
 ```
 
-As the graph shows, the Elo and Folyani victory probabilities are
+As the graph shows, the Elo and Folyami victory probabilities are
 similar to each other, with the absolute difference between them never
 exceeding 0.01. While using the Elo expected scores would have been
 defensible in face of this fact, the choice was made to trade this
