@@ -367,7 +367,7 @@ In these formulas:
 - $W_{X}$ is essentially the same as the Elo expected score. The only
   difference is an additional scaling factor, $c$, whose introduction is
   a matter of presentation and not imposed by the model.
-- $c = \frac{8}{15}\left(1 - \frac{2}{3(2\pi\sqrt{29}-3)}\right) \approx
+- $c = \frac{8}{15}\left(1 - \frac{2}{3\pi(2\sqrt{29}-3)}\right) \approx
   0.5188$ is chosen so that $S_{X}$ is as close as possible to the Elo
   expected score. The point of such an adjustment is keeping Elo and
   Folyami ratings broadly comparable given a common choice of $K$.
