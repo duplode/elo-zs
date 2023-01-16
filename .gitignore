@@ -27,3 +27,7 @@ test2.csv
 
 *.rpl
 *.trk
+
+docs/plots/*
+docs/folyami.html
+docs/folyami.pdf
