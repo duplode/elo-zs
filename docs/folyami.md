@@ -367,7 +367,7 @@ In these formulas:
 - $W_{X}$ is essentially the same as the Elo expected score. The only
   difference is an additional scaling factor, $c$, whose introduction is
   a matter of presentation and not imposed by the model.
-- $c = \approx 0.5188$ is chosen so that $S_{X}$ is as close as possible
+- $c \approx 0.5188$ is chosen so that $S_{X}$ is as close as possible
   to the Elo expected score. The point of such an adjustment is keeping
   Elo and Folyami ratings broadly comparable given a common choice of
   $K$. Gamma shapes other than 3 would require a different value of
@@ -447,12 +447,14 @@ plot f(x) title 'rating 1500' ls 2,\
     j(x) title 'rating 1800' ls 8,\
 ```
 
-## Appendix: points gained
+## Appendix: illustrative charts
 
-The table below provides, for the sake of illustration, a small sample
-of points gained after a match win for different combinations of rating
-difference (rows) and remoteness/scoreboard distance (columns), with no
-provisional factors involved. Values are rounded to one decimal place.
+### Points gained after a win
+
+The table below displays several examples of points gained after a match
+win given different combinations of rating difference (rows) and
+remoteness/scoreboard distance (columns). No provisional factors are
+applied. Values are rounded to one decimal place.
 
  ↓ΔR \\ ΔP→        1    3    6   10   15
 -------------   ---- ---- ---- ---- ----
@@ -472,6 +474,33 @@ provisional factors involved. Values are rounded to one decimal place.
 300              2.6  2.3  1.6  0.9  0.5
 500              0.8  0.7  0.5  0.3  0.1
 -------------   ---- ---- ---- ---- ----
+
+### Victory probabilities
+
+The following table shows examples of victory probabilities in the
+absence of draws given different rating advantages. The percentages are
+rounded to one decimal place.
+
+  ΔR     Victory %
+----    ----------
+   0          50.0
+  50          57.0
+ 100          63.7
+ 150          70.0
+ 200          75.7
+ 250          80.7
+ 300          85.0
+ 350          88.5
+ 400          91.4
+ 450          93.7
+ 500          95.4
+ 550          96.7
+ 600          97.7
+ 650          98.4
+ 700          98.9
+ 750          99.2
+ 800          99.5
+----    ----------
 
 ## Acknowledgements
 
