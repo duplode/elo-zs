@@ -25,6 +25,7 @@ test2.csv
 *.csv
 .~*
 test*.html
+todo.txt
 
 *.rpl
 *.trk

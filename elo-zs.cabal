@@ -55,6 +55,7 @@ executable elo-zs
                      , integration
                      , statistics
                      , math-functions
+                     , numeric-tools
                      , mwc-random >= 0.15
                      , pipes
                      , mtl

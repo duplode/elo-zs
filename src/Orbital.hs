@@ -25,8 +25,13 @@ module Orbital
 import Numeric.SpecFunctions (choose)
 import Statistics.Distribution
 import Statistics.Distribution.Gamma
+import qualified Numeric.Tools.Differentiation as Diff
+    (diffRichardson, diffRes)
+import qualified Numeric.Integration.TanhSinh as Integ
+import Numeric.RootFinding
 import Data.MemoTrie
 import Data.List (foldl')
+import Data.Default.Class
 
 -- | The base implementation of victory probabilities for performances
 -- modelled by gamma distributions with the same (integer) shape.
@@ -68,33 +73,47 @@ initialRating = 1500
 eloAlpha :: Double
 eloAlpha = log 10 / 400
 
--- | Adjusts the k values obtained from ratings depending on the gamma shape so
--- that the same rating gaps correspond to approximately the same winning
+-- | Adjusts the k values obtained from ratings depending on the gamma shape
+-- so that the same rating gaps correspond to approximately the same winning
 -- probabilities.
 --
--- The formula used here is made of two factors:
---
--- - A base correction, which on its own would adjust the derivative of
---   @deltaWP gsh@ to match that of @deltaWP 1@ at zero. This factor, which is
---   the best adjustment for rating gaps close to zero, slightly increases
---   the absolute excess winning probabilities over the entire range of gaps.
---
--- - An additional correction, which reduces the aforementioned bias. Its value
---   is chosen to (approximately) minimise the sum of the squares of the
---   differences between @ratioWP gsh@ and @ratioWP 1@ over the entire range
---   of ratios.
+-- The value of the correction is chosen so that the sum of the squares
+-- of the differences between @ratioWP gsh@ and @ratioWP 1@ over the entire
+-- range of ratios.
 eloGammaCorrection :: Int -> Double
-eloGammaCorrection gsh = extraAdjustment * baseCorrection
+eloGammaCorrection gsh = case gsh of
+    1 -> 1
+    _ -> case ridders def (0, 1) derivTotalSqErr of
+        NotBracketed -> error "Orbital.eloGammaCorrection: derivative not bracketed"
+        SearchFailed -> error "Orbital.eloGammaCorrection: root search failure"
+        Root x -> x
+    where
+    derivTotalSqErr = Diff.diffRes . Diff.diffRichardson totalSqErr 0.2
+    totalSqErr c = Integ.result . Integ.absolute 1e-7 $
+        Integ.trap (sqErr c) 0 1
+    sqErr c w = (deltaWPCorr c (toDelta w) - w)^2
+    -- In the above, we convert the winning probability to a rating delta,
+    -- slip in the correction factor, and convert it back.
+    deltaWPCorr c = \d -> ratioWP gsh (1 / (1 + exp(- c * d)))
+    toDelta w = 2 * atanh (2 * w - 1)
+
+-- | Memoised Elo gamma correction
+memoEloGammaCorrection = memo eloGammaCorrection
+
+-- | A closed formula approximation for @eloGammaCorrection@. It adjusts
+-- the derivative of @deltaWP gsh@ to match that of @deltaWP 1@ at zero.
+-- This factor, which is the best adjustment for rating gaps close to
+-- zero, slightly increases the absolute excess winning probabilities
+-- over the entire range of gaps relative to @eloGammaCorrection@.
+eloGammaCorrectionApprox :: Int -> Double
+eloGammaCorrectionApprox gsh = 4^(gsh-1) / (gsh' * choose (2*gsh-1) (gsh-1))
     where
     gsh' = fromIntegral gsh
-    baseCorrection = 4^(gsh-1) / (gsh' * choose (2*gsh-1) (gsh-1))
-    fittedConstant = (2*sqrt 29 - 3)*pi
-    extraAdjustment = 1 - (gsh'-1) / (gsh' * fittedConstant)
 
 -- | Elo conversion factor. Amounts to eloAlpha for shape 1, in which case the
 -- gamma model coincides with the conventional Elo system.
 eloFactor :: Int -> Double
-eloFactor gsh = eloGammaCorrection gsh * eloAlpha
+eloFactor gsh = memoEloGammaCorrection gsh * eloAlpha
 
 -- | Memoised Elo conversion factor.
 memoEloFactor :: Int -> Double

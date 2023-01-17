@@ -367,12 +367,11 @@ In these formulas:
 - $W_{X}$ is essentially the same as the Elo expected score. The only
   difference is an additional scaling factor, $c$, whose introduction is
   a matter of presentation and not imposed by the model.
-- $c = \frac{8}{15}\left(1 - \frac{2}{3\pi(2\sqrt{29}-3)}\right) \approx
-  0.5188$ is chosen so that $S_{X}$ is as close as possible to the Elo
-  expected score. The point of such an adjustment is keeping Elo and
-  Folyami ratings broadly comparable given a common choice of $K$.
-  Gamma shapes other than 3 would require a different value of $c$ to
-  play this role.
+- $c = \approx 0.5188$ is chosen so that $S_{X}$ is as close as possible
+  to the Elo expected score. The point of such an adjustment is keeping
+  Elo and Folyami ratings broadly comparable given a common choice of
+  $K$. Gamma shapes other than 3 would require a different value of
+  $c$ to play this role.
 - Given $\alpha = \frac{\ln 10}{400}$, we have $c\alpha \approx
   0.002986$.
 
@@ -392,7 +391,7 @@ set xlabel 'Rating difference'
 set ylabel 'Victory probability'
 
 a = log(10)/400
-c = (8/15.0)*(1-2/(3*pi*(2*sqrt(29)-3)))
+c = 0.5187786501420859
 e(x) = 1/(exp(-a*x)+1)
 g(x) = 6*e(x)**5 - 15*e(x)**4 + 10*e(x)**3
 w(x) = 1/(exp(-c*a*x)+1)

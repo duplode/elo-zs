@@ -261,7 +261,7 @@ baseSmoothFactor
 baseSmoothFactor grad avgFctr =
     case ridders def (lowerBound, upperBound) fCrossing of
         NotBracketed -> error "Engine.lastProvisionalFactor: fCrossing not bracketed"
-        SearchFailed -> error "Engine.lastProvisionalactor: root search failure"
+        SearchFailed -> error "Engine.lastProvisionalFactor: root search failure"
         Root x -> x
     where
     grad' = fromIntegral grad
