@@ -89,13 +89,21 @@ eloGammaCorrection gsh = case gsh of
         Root x -> x
     where
     derivTotalSqErr = Diff.diffRes . Diff.diffRichardson totalSqErr 0.2
-    totalSqErr c = Integ.result . Integ.absolute 1e-7 $
-        Integ.trap (sqErr c) 0 1
-    sqErr c w = (deltaWPCorr c (toDelta w) - w)^2
-    -- In the above, we convert the winning probability to a rating delta,
-    -- slip in the correction factor, and convert it back.
-    deltaWPCorr c = \d -> ratioWP gsh (1 / (1 + exp(- c * d)))
-    toDelta w = 2 * atanh (2 * w - 1)
+    totalSqErr c = Integ.result . Integ.absolute 1e-8 $ Integ.trap (sqErr c) 0 1
+    sqErr c w = (wpCorr c w - w)^2
+    wpCorr c w = let z = w**c in ratioWP gsh (z / (z + (1 - w)**c))
+    -- A simpler, though perhaps slightly less good for numerical
+    -- stability, for wpCorr is:
+    --
+    -- wpCorr c w = ratioWP gsh (1 / (1 + (1/w - 1)**c))
+    --
+    -- In the above, we convert the Elo winning probability w to a
+    -- (unscaled) rating delta, slip in the correction factor, and
+    -- convert it back. Here is a way of writing it which makes that
+    -- explicit:
+    --
+    -- toDelta w = 2 * atanh (2 * w - 1)
+    -- wpCorr c d = ratioWP gsh (1 / (1 + exp(- c * d)))
 
 -- | Memoised Elo gamma correction
 memoEloGammaCorrection = memo eloGammaCorrection
@@ -148,13 +156,13 @@ referenceRating = initialRating
 
 -- | k-to-rating conversion. Only for reference, at least for now.
 ratingFromK :: Int -> Double -> Double
-ratingFromK gsh u = referenceRating + log u / eloFactor gsh
+ratingFromK gsh u = referenceRating + log u / memoEloFactor gsh
 
 -- | rating-to-k conversion.
 kFromRating :: Int -> Double -> Double
-kFromRating gsh r = exp ((r - referenceRating) * eloFactor gsh)
--- Using memoEloFactor instead of eloFactor here doesn't seem to improve
--- performance.
+kFromRating gsh r = exp ((r - referenceRating) * memoEloFactor gsh)
+-- Using memoEloFactor here has a modest but noticeable performance
+-- effect when running simulations.
 
 -- | The model distribution is a special case of the gamma distribution, with
 -- theta = 1/k.
