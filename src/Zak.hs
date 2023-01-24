@@ -233,6 +233,25 @@ demoCurrent eopts = testData def
         = distillRatings def {activityCut=Just 12}
         <$> allRatings eopts
 
+-- | Alphabetical list of all racers.
+demoAlphabeticalForPub :: Tab.Table String String String
+demoAlphabeticalForPub = testData def
+    -- Using a prescan for highestPerPeak is intentional, as it gives the
+    -- peak before the last update, which is an interesting information.
+    -- To check: is the composed scan here sufficiently strict?
+    & L.fold (finalRatings def)
+    & Map.toList . extract
+    & sortBy (comparing (T.toUpper . fst))
+    & arrangeTable
+        (const "" <$>)
+        ["Racer", "Rating", "Races", "Latest"]
+        (\(p, d) ->
+            [ T.unpack p
+            , show (floor (rating d))
+            , show (entries d)
+            , toZakLabel (lastRace d)
+            ])
+
 demoWeighedScores :: EloOptions -> RaceIx -> Tab.Table String String String
 demoWeighedScores eopts selRaceIx = testData def
     & LS.scan (weighedScores eopts)
