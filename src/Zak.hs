@@ -59,9 +59,9 @@ demoHighestForPub :: Tab.Table String String String
 demoHighestForPub = runHighest def
     & arrangeTable
         (fmap show . zipWith const [1..])
-        ["Racer", "Race", "Rating"]
+        ["Racer", "Rating", "Race"]
         (\(p, AtRace ri rtg) ->
-            [T.unpack p, toZakLabel ri, show @Integer (floor rtg)])
+            [T.unpack p, show @Integer (floor rtg), toZakLabel ri])
 
 demoAccumulated :: EloOptions -> Tab.Table String String String
 demoAccumulated eopts = testData def
@@ -244,7 +244,7 @@ demoAlphabeticalForPub = testData def
     & sortBy (comparing (T.toUpper . fst))
     & arrangeTable
         (const "" <$>)
-        ["Racer", "Rating", "Races", "Latest"]
+        ["Racer", "Rating", "Incl. Races", "Latest"]
         (\(p, d) ->
             [ T.unpack p
             , show (floor (rating d))
