@@ -57,8 +57,6 @@ X confirms their favouritism and wins the match, they will get (and
 Y will lose) only 6 points (one third of $K$). However, if Y pulls off
 an upset, they will get (and X will lose) 12 points (two thirds of $K$).
 
-Suppose that, before a given match, $E_{X} = \frac{2}{3}$. That
-
 Folyami uses the formula above to update ratings. The main differences
 with respect to Elo lie in how the expected score is calculated, and how
 the value of $K$ is set. Before having a close look at those
