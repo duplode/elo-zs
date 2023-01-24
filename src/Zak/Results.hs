@@ -84,6 +84,7 @@ ghostList =
     , "Geovani da Silva (ghost)"
     , "oh yeah"
     , "Xianthi"
+    , "Fuoco"
 
     , "Vector"
     , "Chicago Striker"
