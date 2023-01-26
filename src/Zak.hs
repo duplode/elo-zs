@@ -7,7 +7,7 @@
 module Zak where
 
 import Analysis
-import Analysis.Common (distillRatings, distillRatingsAssocList)
+import Analysis.Common (distillRatings, distillRatingsAssocList, isKeptRating)
 import Engine
 import Types
 import Tidying
@@ -236,9 +236,6 @@ demoCurrent eopts = testData def
 -- | Alphabetical list of all racers.
 demoAlphabeticalForPub :: Tab.Table String String String
 demoAlphabeticalForPub = testData def
-    -- Using a prescan for highestPerPeak is intentional, as it gives the
-    -- peak before the last update, which is an interesting information.
-    -- To check: is the composed scan here sufficiently strict?
     & L.fold (finalRatings def)
     & Map.toList . extract
     & sortBy (comparing (T.toUpper . fst))
@@ -249,6 +246,32 @@ demoAlphabeticalForPub = testData def
             [ T.unpack p
             , show (floor (rating d))
             , show (entries d)
+            , toZakLabel (lastRace d)
+            ])
+
+-- | Alphabetical list of near-misses due to activity cut.
+demoNearMissesForPub
+    :: Int  -- ^ Tolerance.
+    -> Int  -- ^ Activity cut.
+    -> Tab.Table String String String
+demoNearMissesForPub tol aCut = testData def
+    & L.fold (finalRatings def)
+    -- TODO: Consider moving the filtering logic to Analysis.Commons
+    & (\ards ->
+        let ri = raceIx ards
+            ds = extract ards
+        in Map.toList $ Map.filter
+            (\d ->
+                isKeptRating def{ activityCut = Just tol } ri d
+                    && not (isKeptRating def{ activityCut = Just aCut } ri d))
+            ds)
+    & sortBy (comparing (T.toUpper . fst))
+    & arrangeTable
+        (const "" <$>)
+        ["Racer", "Rating", "Latest"]
+        (\(p, d) ->
+            [ T.unpack p
+            , show (floor (rating d))
             , toZakLabel (lastRace d)
             ])
 
