@@ -59,7 +59,7 @@ demoHighestForPub :: Tab.Table String String String
 demoHighestForPub = runHighest def
     & arrangeTable
         (fmap show . zipWith const [1..])
-        ["Racer", "Rating", "Race"]
+        ["Racer", "Pers. Best", "At"]
         (\(p, AtRace ri rtg) ->
             [T.unpack p, show @Integer (floor rtg), toZakLabel ri])
 
