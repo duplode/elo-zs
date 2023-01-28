@@ -110,12 +110,16 @@ demoWindowLeaders eopts = testData def
         ["Racer", "Rating"]
         (maybe ["N/A", "N/A"] (\(p, x) -> [T.unpack p, show x]) . extract)
 
-demoMeanSnap :: EloOptions -> Tab.Table String String String
-demoMeanSnap eopts = testData def
+-- The PostProcessOptions argument should be used to set the desired
+-- windows for the mean.
+demoMeanSnap
+    :: EloOptions
+    -> PostProcessOptions
+    -> Tab.Table String String String
+demoMeanSnap eopts ppopts = testData def
     & LS.scan
         (meanRatingAtSnapshot
-            -- . distillRatings eopts def{activityCut=Just 12, excludeProvisional=True}
-            . distillRatings def {activityCut=Nothing, provisionalCut=Nothing}
+            . distillRatings ppopts
                 <$> allRatings eopts)
     & arrangeTable
         (fmap (toZakLabel . raceIx))
