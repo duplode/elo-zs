@@ -96,18 +96,22 @@ data DisplayDelta = DisplayDelta
 -- While the rating deltas could easily enough be stored during the core
 -- engine calculations, the rounding would be an extraneous concern
 -- there.
---
--- Note this is still a rough prototype.
 displayDeltaScan
     :: PostProcessOptions
     -> LS.Scan (AtRace Ratings) (AtRace (Map.Map PipId (Maybe Integer)))
-displayDeltaScan ppopts = LS.postscan $
-    L.Fold
-        mergeAsDelta
-        (AtRace 0 Map.empty)
-        (fmap @AtRace (fmap ddDelta) . distill)
+displayDeltaScan ppopts = LS.postscan
+    . lmap (distillRatings lastRacePpopts) $
+        L.Fold
+            mergeAsDelta
+            (AtRace 0 Map.empty)
+            (fmap @AtRace (fmap ddDelta) . distill)
     where
     initialRating' = floor initialRating
+    lastRacePpopts :: PostProcessOptions
+    lastRacePpopts = def
+        { activityCut = Just 1
+        , provisionalCut = Nothing
+        }
     mergeAsDelta
         :: AtRace (Map.Map PipId DisplayDelta)
         -> AtRace Ratings
@@ -135,7 +139,7 @@ displayDeltaScan ppopts = LS.postscan $
             rtgs
     distill = extend $ \(AtRace ri dds) ->
         Map.filter (isKeptByPP ddLastRace ddEntries ppopts ri) dds
--- last $ LS.scan (displayDeltaScan def { activityCut = Just 4 } <<< distillRatings def { activityCut = Just 1 } <$> allRatings def) $ testData def
+-- last $ LS.scan (displayDeltaScan def { activityCut = Just 4 } <<< allRatings def) $ testData def
 
 -- Below follow various approaches to race strength estimation.
 
