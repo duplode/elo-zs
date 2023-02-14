@@ -27,6 +27,10 @@ import qualified Data.List.NonEmpty as N
 import Data.List
 import Control.Monad
 import Control.Monad.Trans
+import Data.Functor ((<&>))
+
+-- | Strict pair type. A temporary vessel for intermediate fold results.
+data SP a b = SP !a !b
 
 -- | Highest rating achieved by each racer, annotated with the race at which
 -- it was achieved.
@@ -73,6 +77,40 @@ personalHistory p = mapMaybe (surroundL @AtRace (fmap rating . Map.lookup p))
 -- | Prototype for running multiple histories side by side.
 personalRating :: PipId -> AtRace Ratings -> AtRace (Maybe Double)
 personalRating p = fmap @AtRace (fmap rating . Map.lookup p)
+
+-- | Differences in ratings from one round to the next, with the ratings
+-- being rounded downwards, as they appear in the published rankings.
+-- 'Nothing' means the player has no entry for the current race.
+--
+-- While the rating deltas could easily enough be stored during the core
+-- engine calculations, the rounding would be an extraneous concern
+-- there.
+--
+-- Note this is still a rough prototype.
+displayDeltaScan :: LS.Scan (AtRace Ratings) (AtRace (Map.Map PipId (Maybe Integer)))
+displayDeltaScan = LS.postscan $
+    L.Fold
+        mergeAsDelta
+        (toAtRace (0, Map.empty))
+        (fmap @AtRace (fmap (\(SP _ d) -> d)))
+    where
+    mergeAsDelta
+        :: AtRace (Map.Map PipId (SP Integer (Maybe Integer)))
+        -> AtRace Ratings
+        -> AtRace (Map.Map PipId (SP Integer (Maybe Integer)))
+    mergeAsDelta arAcc arRtgs = arRtgs <&> \rtgs ->
+        Map.merge
+            (Map.mapMissing $ \_ (SP prev _) -> SP prev Nothing)
+            (Map.mapMissing $ \_ pipData ->
+                let curr = floor (rating pipData)
+                in SP curr (Just $! curr - initialRating'))
+            (Map.zipWithMatched $ \_ (SP prev _) pipData ->
+                let curr = floor (rating pipData)
+                in SP curr (Just $! curr - prev))
+            (extract arAcc)
+            rtgs
+    initialRating' = floor initialRating
+-- last $ LS.scan (displayDeltaScan <<< distillRatings def { activityCut = Just 1 } <$> allRatings def) $ testData def
 
 -- Below follow various approaches to race strength estimation.
 
@@ -287,8 +325,6 @@ ndcg eopts = previousRatings eopts &&& returnA
             -> SP (norm + normParcel) (acc + normParcel * parcel))
         (SP 0 0)
         (\(SP idcg acc) -> acc / idcg)
-
-data SP a b = SP !a !b
 
 -- | NDCG, but using expected positions from simulations rather than just
 -- the order of ratings.
