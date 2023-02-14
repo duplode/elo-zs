@@ -27,7 +27,6 @@ import qualified Data.List.NonEmpty as N
 import Data.List
 import Control.Monad
 import Control.Monad.Trans
-import Data.Functor ((<&>))
 
 -- | Strict pair type. A temporary vessel for intermediate fold results.
 data SP a b = SP !a !b

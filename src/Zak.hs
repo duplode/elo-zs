@@ -226,8 +226,7 @@ runForPub selRace aCut =
     ppopts = def { selectedRace = selRace, activityCut = Just aCut }
     -- TODO: Consider abstracting the distillers
     distill = extend $
-        \(AtRace ri xs) ->
-            filter (isKeptByPP lastRace entries ppopts ri . fst . snd) xs
+        \(AtRace ri xs) -> filter (isKeptRating ppopts ri . fst . snd) xs
     mkEntry (pipId, (pipData, delta)) = CurrentRankingEntry
         { crePipId = pipId
         , creRating = floor (rating pipData)
@@ -245,7 +244,7 @@ demoForPub selRace aCut = runForPub selRace aCut
             , formatDelta (creDelta cre)
             ])
     where
-    formatDelta = maybe "NA" $ \delta ->
+    formatDelta = maybe "n/a" $ \delta ->
         (if delta > 0 then "+" else "") ++ show delta
 
 demoCurrentForPub :: Int -> Tab.Table String String String
