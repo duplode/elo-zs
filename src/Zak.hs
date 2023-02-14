@@ -205,20 +205,19 @@ runForPub
     :: Maybe RaceIx -- ^ Selected race.
     -> Int -- ^ Activity cut.
     -> [CurrentRankingEntry]
-runForPub selRace aCut =
-    LS.scan
-            (returnA &&& displayDeltaScan ppopts <<< allRatings eopts)
-            (testData dpopts)
-        -- TODO: This is a little too messy.
-        -- Note that the intersection means that, for this specific
-        -- purpose, the filtering in the display delta scan is not
-        -- needed.
-        & map (\(AtRace ri rtgs, AtRace _ dds) ->
-            AtRace ri (Map.intersectionWith (,) rtgs dds))
-        & maybe last (flip (!!)) (selectedRace ppopts)
-        & fmap @AtRace Map.toList
-        & distill & extract & fmap mkEntry
-        & sortBy (comparing (Down . creRating))
+runForPub selRace aCut = testData dpopts
+    & LS.scan (returnA &&& LS.postscan (displayDeltas ppopts)
+        <<< allRatings eopts)
+    -- TODO: This is a little too messy.
+    -- Note that the intersection means that, for this specific
+    -- purpose, the filtering in the display delta scan is not
+    -- needed.
+    & map (\(AtRace ri rtgs, AtRace _ dds) ->
+        AtRace ri (Map.intersectionWith (,) rtgs dds))
+    & maybe last (flip (!!)) (selectedRace ppopts)
+    & fmap @AtRace Map.toList
+    & distill & extract & fmap mkEntry
+    & sortBy (comparing (Down . creRating))
     where
     -- We might want to make these configurable eventually.
     dpopts = def
