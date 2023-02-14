@@ -8,6 +8,7 @@ module Analysis.Common
     ( foldThroughLone
     , foldRatingsPerRace
     , foldRatingsAtSnapshot
+    , isKeptByPP
     , isKeptRating
     , distillRatings
     , distillRatingsAssocList
@@ -72,6 +73,19 @@ foldRatingsAtSnapshot :: L.Fold PipData b -> AtRace Ratings -> AtRace b
 foldRatingsAtSnapshot alg = fmap @AtRace (L.fold alg)
 -- This is straightforward enough to be done without 'foldThroughLone'.
 
+-- | Should this data be retained according to the post-processing
+-- criteria?
+isKeptByPP
+    :: (d -> RaceIx)       -- ^ Obtain last race index for the data.
+    -> (d -> Int)          -- ^ Obtain total entries for the data.
+    -> PostProcessOptions
+    -> RaceIx              -- ^ Current event index.
+    -> d
+    -> Bool
+isKeptByPP fDLri fDEntr ppopts ri d =
+    maybe True (\ac -> ri - fDLri d < ac) (activityCut ppopts)
+        && maybe True (\pc -> fDEntr d >= pc) (provisionalCut ppopts)
+
 -- | Should this rating be retained according to the post-processing
 -- criteria?
 isKeptRating
@@ -79,9 +93,7 @@ isKeptRating
     -> RaceIx              -- ^ Current event index.
     -> PipData
     -> Bool
-isKeptRating ppopts ri rtg =
-    maybe True (\ac -> ri - lastRace rtg < ac) (activityCut ppopts)
-        && maybe True (\pc -> entries rtg >= pc) (provisionalCut ppopts)
+isKeptRating = isKeptByPP lastRace entries
 
 -- | Apply the post-processing criteria to filter ratings (association list
 -- version).

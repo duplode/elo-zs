@@ -8,7 +8,7 @@ import Engine
 import Tidying
 import Util.Lone
 import Analysis.Common (foldThroughLone, foldRatingsPerRace
-    , foldRatingsAtSnapshot, distillRatings)
+    , isKeptByPP, foldRatingsAtSnapshot, distillRatings)
 import Analysis.PerfModel
 import Simulation
 import Weighing
@@ -78,6 +78,17 @@ personalHistory p = mapMaybe (surroundL @AtRace (fmap rating . Map.lookup p))
 personalRating :: PipId -> AtRace Ratings -> AtRace (Maybe Double)
 personalRating p = fmap @AtRace (fmap rating . Map.lookup p)
 
+-- | Bespoke intermediate type for the display delta calculation. The
+-- ratings and deltas are integers because display deltas are obtained
+-- from rounded down values.
+data DisplayDelta = DisplayDelta
+    { ddPrevRating :: !Integer
+    , ddLastRace :: !RaceIx
+    , ddEntries :: !Int
+    , ddDelta :: !(Maybe Integer)
+    }
+    deriving Show
+
 -- | Differences in ratings from one round to the next, with the ratings
 -- being rounded downwards, as they appear in the published rankings.
 -- 'Nothing' means the player has no entry for the current race.
@@ -87,30 +98,44 @@ personalRating p = fmap @AtRace (fmap rating . Map.lookup p)
 -- there.
 --
 -- Note this is still a rough prototype.
-displayDeltaScan :: LS.Scan (AtRace Ratings) (AtRace (Map.Map PipId (Maybe Integer)))
-displayDeltaScan = LS.postscan $
+displayDeltaScan
+    :: PostProcessOptions
+    -> LS.Scan (AtRace Ratings) (AtRace (Map.Map PipId (Maybe Integer)))
+displayDeltaScan ppopts = LS.postscan $
     L.Fold
         mergeAsDelta
-        (toAtRace (0, Map.empty))
-        (fmap @AtRace (fmap (\(SP _ d) -> d)))
+        (AtRace 0 Map.empty)
+        (fmap @AtRace (fmap ddDelta) . distill)
     where
+    initialRating' = floor initialRating
     mergeAsDelta
-        :: AtRace (Map.Map PipId (SP Integer (Maybe Integer)))
+        :: AtRace (Map.Map PipId DisplayDelta)
         -> AtRace Ratings
-        -> AtRace (Map.Map PipId (SP Integer (Maybe Integer)))
-    mergeAsDelta arAcc arRtgs = arRtgs <&> \rtgs ->
+        -> AtRace (Map.Map PipId DisplayDelta)
+    mergeAsDelta arAcc arRtgs = arRtgs =>> \(AtRace ri rtgs) ->
         Map.merge
-            (Map.mapMissing $ \_ (SP prev _) -> SP prev Nothing)
+            (Map.mapMissing $ \_ dd -> dd { ddDelta = Nothing })
             (Map.mapMissing $ \_ pipData ->
                 let curr = floor (rating pipData)
-                in SP curr (Just $! curr - initialRating'))
-            (Map.zipWithMatched $ \_ (SP prev _) pipData ->
+                in DisplayDelta
+                    { ddPrevRating = curr
+                    , ddLastRace = ri
+                    , ddEntries = entries pipData
+                    , ddDelta = Just $! curr - initialRating'
+                    })
+            (Map.zipWithMatched $ \_ dd pipData ->
                 let curr = floor (rating pipData)
-                in SP curr (Just $! curr - prev))
+                in dd
+                    { ddPrevRating = curr
+                    , ddLastRace = ri
+                    , ddEntries = entries pipData
+                    , ddDelta = Just $! curr - ddPrevRating dd
+                    })
             (extract arAcc)
             rtgs
-    initialRating' = floor initialRating
--- last $ LS.scan (displayDeltaScan <<< distillRatings def { activityCut = Just 1 } <$> allRatings def) $ testData def
+    distill = extend $ \(AtRace ri dds) ->
+        Map.filter (isKeptByPP ddLastRace ddEntries ppopts ri) dds
+-- last $ LS.scan (displayDeltaScan def { activityCut = Just 4 } <<< distillRatings def { activityCut = Just 1 } <$> allRatings def) $ testData def
 
 -- Below follow various approaches to race strength estimation.
 
