@@ -7,7 +7,8 @@
 module Zak where
 
 import Analysis
-import Analysis.Common (distillRatings, distillRatingsAssocList, isKeptRating)
+import Analysis.Common (distillRatings, distillRatingsAssocList, isKeptRating
+    , isKeptByPP)
 import Engine
 import Types
 import Tidying
@@ -190,31 +191,65 @@ demoRanking eopts ppopts = runTest eopts def ppopts
         ["Racer", "Rating"]
         (\(p, rtg) -> [T.unpack p, show rtg])
 
--- | Sorted racer-rating pairs, suitable for publication.
-runTestForPub
+-- | Bespoke type for a publication-ready entry for the current ranking.
+-- Note that ratings are rounded down (ergo the integral type).
+data CurrentRankingEntry = CurrentRankingEntry
+    { crePipId :: !PipId
+    , creRating :: !Integer
+    , creDelta :: !(Maybe Integer)
+    }
+    deriving Show
+
+-- | Sorted current ranking entries, suitable for publication.
+runForPub
     :: Maybe RaceIx -- ^ Selected race.
     -> Int -- ^ Activity cut.
-    -> [(PipId, Integer)]
-runTestForPub selRace aCut = runTest def def
-        def { selectedRace = selRace, activityCut = Just aCut }
-    & fmap (fmap floor)
+    -> [CurrentRankingEntry]
+runForPub selRace aCut =
+    LS.scan
+            (returnA &&& displayDeltaScan ppopts <<< allRatings eopts)
+            (testData dpopts)
+        -- TODO: This is a little too messy.
+        -- Note that the intersection means that, for this specific
+        -- purpose, the filtering in the display delta scan is not
+        -- needed.
+        & map (\(AtRace ri rtgs, AtRace _ dds) ->
+            AtRace ri (Map.intersectionWith (,) rtgs dds))
+        & maybe last (flip (!!)) (selectedRace ppopts)
+        & fmap @AtRace Map.toList
+        & distill & extract & fmap mkEntry
+        & sortBy (comparing (Down . creRating))
+    where
+    -- We might want to make these configurable eventually.
+    dpopts = def
+    eopts = def
+    ppopts = def { selectedRace = selRace, activityCut = Just aCut }
+    -- TODO: Consider abstracting the distillers
+    distill = extend $
+        \(AtRace ri xs) ->
+            filter (isKeptByPP lastRace entries ppopts ri . fst . snd) xs
+    mkEntry (pipId, (pipData, delta)) = CurrentRankingEntry
+        { crePipId = pipId
+        , creRating = floor (rating pipData)
+        , creDelta = delta
+        }
 
-demoTestForPub :: Maybe RaceIx -> Int -> Tab.Table String String String
-demoTestForPub selRace aCut = runTestForPub selRace aCut
+demoForPub :: Maybe RaceIx -> Int -> Tab.Table String String String
+demoForPub selRace aCut = runForPub selRace aCut
     & arrangeTable
         (fmap show . zipWith const [1..])
-        ["Racer", "Rating"]
-        (\(p, rtg) -> [T.unpack p, show rtg])
+        ["Racer", "Rating", "Change"]
+        (\cre ->
+            [ T.unpack (crePipId cre)
+            , show (creRating cre)
+            , formatDelta (creDelta cre)
+            ])
+    where
+    formatDelta = maybe "NA" $ \delta ->
+        (if delta > 0 then "+" else "") ++ show delta
 
--- | Sorted racer-rating pairs for the latest race, suitable for ranking
--- publication.
-runCurrentForPub
-    :: Int -- ^ Activity cut.
-    -> [(PipId, Integer)]
-runCurrentForPub = runTestForPub Nothing
-
-demoRankingForPub :: Int -> Tab.Table String String String
-demoRankingForPub = demoTestForPub Nothing
+demoCurrentForPub :: Int -> Tab.Table String String String
+demoCurrentForPub = demoForPub Nothing
 
 -- | Current rating and past peak rating for racers active within the last
 -- 12 races.
