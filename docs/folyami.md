@@ -242,11 +242,11 @@ the system which makes it easier to use for performance predictions and
 simulations. To motivate the change, we will begin by considering the
 Elo system. Let's start by looking at the Elo expected score formula:
 
-$$S_{Elo X} = \frac{1}{e^{-\alpha(R_{X} - R_{Y})} + 1}$$
+$$E_{Elo X} = \frac{1}{e^{-\alpha(R_{X} - R_{Y})} + 1}$$
 
 Where:
 
-- $S_{Elo X}$ is the Elo expected score for player X in a match against
+- $E_{Elo X}$ is the Elo expected score for player X in a match against
   player Y.
 - $R_{X}$ and $R_{Y}$ are the ratings of the players X and Y.
 - $\alpha$ is a scaling constant, typically set to $\frac{\ln 10}{400}
@@ -351,7 +351,7 @@ minimally reasonable model for the ratings.
 The Folyami victory probability/expected score formula, which therefore
 follows from a shape 3 gamma performance model, is:
 
-$$S_{X} = 6W_{X}^5 - 15W_{X}^4 + 10W_{X}^3$$
+$$E_{X} = 6W_{X}^5 - 15W_{X}^4 + 10W_{X}^3$$
 
 Where:
 
@@ -359,13 +359,13 @@ $$W_{X} = \frac{1}{e^{-c\alpha(R_{X} - R_{Y})} + 1}$$
 
 In these formulas:
 
-- $S_{X}$ is a polynomial of degree 5 in $W_{X}$. In general, given a
-  chosen gamma shape $g$ for the model, $S_{X}$ will be a polynomial of
+- $E_{X}$ is a polynomial of degree 5 in $W_{X}$. In general, given a
+  chosen gamma shape $g$ for the model, $E_{X}$ will be a polynomial of
   degree $2g-1$ in $W_{X}$.
 - $W_{X}$ is essentially the same as the Elo expected score. The only
   difference is an additional scaling factor, $c$, whose introduction is
   a matter of presentation and not imposed by the model.
-- $c \approx 0.5188$ is chosen so that $S_{X}$ is as close as possible
+- $c \approx 0.5188$ is chosen so that $E_{X}$ is as close as possible
   to the Elo expected score. The point of such an adjustment is keeping
   Elo and Folyami ratings broadly comparable given a common choice of
   $K$. Gamma shapes other than 3 would require a different value of
