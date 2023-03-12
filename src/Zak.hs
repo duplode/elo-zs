@@ -18,8 +18,10 @@ import Zak.Results
 import Util.Lone
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import Data.Ord
 import Data.List
+import Data.List.Extra (takeEnd)
 import qualified Data.Text as T
 import Control.Arrow
 import Data.Default.Class
@@ -248,6 +250,42 @@ demoForPub selRace aCut = runForPub selRace aCut
 
 demoCurrentForPub :: Int -> Tab.Table String String String
 demoCurrentForPub = demoForPub Nothing
+
+-- | Table for historical chart generation.
+runForChart :: [AtRace (Map.Map PipId Integer)]
+runForChart = testData dpopts
+    & LS.scan (fmap @AtRace (fmap mkVal) . distill <$> allRatings eopts)
+    & takeEnd wnd
+    where
+    -- TODO: Make these configurable
+    wnd = 12
+    aCut = 4
+    dpopts = def
+    eopts = def
+
+    ppopts = def { selectedRace = Nothing, activityCut = Just aCut }
+    distill = extend $
+        \(AtRace ri xs) -> Map.filter (isKeptRating ppopts ri) xs
+    mkVal = floor . rating
+    -- addPip ps = Set.union ps . Map.keysSet . extract
+    -- pickPips = foldl' addPip Set.empty
+
+demoForChart :: Tab.Table String String String
+demoForChart = dat
+    & arrangeTable
+        (fmap (toZakLabel . raceIx))
+        (T.unpack <$> pipsList)
+        (\arxs -> pipsList
+            <&> (\p -> formatRetrieved $ Map.lookup p (extract arxs)))
+    where
+    dat = runForChart
+    latestRatings = foldl'
+        (\lts arxs -> Map.unionWith (flip const) lts (extract arxs))
+        Map.empty
+        dat
+    pipsList = fmap fst . sortBy (comparing (Down . snd))
+        . Map.toList $ latestRatings
+    formatRetrieved = maybe "" show
 
 -- | Current rating and past peak rating for racers active within the last
 -- 12 races.
