@@ -39,6 +39,14 @@ import Data.Maybe
 import System.Random.MWC
 import Control.Monad.State.Strict
 
+-- | Writes the tables used for the Folyami updates.
+writeForPub :: IO ()
+writeForPub = do
+    demoCurrentForPub 4 & demoToHtml "test4.html"
+    demoHighestForPub & demoToHtml "testh.html"
+    demoNearMissesForPub 12 4 & demoToHtml "testn.html"
+    demoForChart & demoToCsv "teste.csv"
+
 runHighest :: EloOptions -> [(PipId, AtRace Double)]
 runHighest eopts = testData def
     & L.fold
