@@ -266,7 +266,7 @@ runForChart = testData dpopts
     & takeEnd wnd
     where
     -- TODO: Make these configurable
-    wnd = 12
+    wnd = 13
     aCut = 4
     dpopts = def
     eopts = def
