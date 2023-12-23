@@ -260,33 +260,33 @@ demoCurrentForPub :: Int -> Tab.Table String String String
 demoCurrentForPub = demoForPub Nothing
 
 -- | Table for historical chart generation.
-runForChart :: [AtRace (Map.Map PipId Integer)]
-runForChart = testData dpopts
+runForChart :: Int -> Maybe RaceIx -> [AtRace (Map.Map PipId Integer)]
+runForChart wnd selRace = testData dpopts
     & LS.scan (fmap @AtRace (fmap mkVal) . distill <$> allRatings eopts)
+    & maybe id (take . (+1)) selRace
     & takeEnd wnd
     where
     -- TODO: Make these configurable
-    wnd = 13
     aCut = 4
     dpopts = def
     eopts = def
 
-    ppopts = def { selectedRace = Nothing, activityCut = Just aCut }
+    ppopts = def { selectedRace = selRace, activityCut = Just aCut }
     distill = extend $
         \(AtRace ri xs) -> Map.filter (isKeptRating ppopts ri) xs
     mkVal = floor . rating
     -- addPip ps = Set.union ps . Map.keysSet . extract
     -- pickPips = foldl' addPip Set.empty
 
-demoForChart :: Tab.Table String String String
-demoForChart = dat
+demoForChart' :: Int -> Maybe RaceIx -> Tab.Table String String String
+demoForChart' wnd selRace = dat
     & arrangeTable
         (fmap (toZakLabel . raceIx))
         (T.unpack <$> pipsList)
         (\arxs -> pipsList
             <&> (\p -> formatRetrieved $ Map.lookup p (extract arxs)))
     where
-    dat = runForChart
+    dat = runForChart wnd selRace
     latestRatings = foldl'
         (\lts arxs -> Map.unionWith (flip const) lts (extract arxs))
         Map.empty
@@ -294,6 +294,9 @@ demoForChart = dat
     pipsList = fmap fst . sortBy (comparing (Down . snd))
         . Map.toList $ latestRatings
     formatRetrieved = maybe "" show
+
+demoForChart :: Tab.Table String String String
+demoForChart = demoForChart' 13 Nothing
 
 -- | Current rating and past peak rating for racers active within the last
 -- 12 races.
