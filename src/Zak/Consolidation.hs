@@ -3139,7 +3139,7 @@ c172 = NoDraws
         , "dstien"
         , "PJ"
         , "afullo"
-        , "Drathas"  -- Rule #1 exclusion
+        , "Alecu"  -- Rule #1 exclusion. "Drathas"
         ]
 c173 = NoDraws
         [ "Duplode"
