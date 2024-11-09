@@ -9,6 +9,7 @@ module Zak where
 import Analysis
 import Analysis.Common (distillRatings, distillRatingsAssocList, isKeptRating
     , isKeptByPP)
+import Analysis.Extra
 import Engine
 import Types
 import Tidying
