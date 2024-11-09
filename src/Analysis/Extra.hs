@@ -1,4 +1,3 @@
---{-# LANGUAGE LambdaCase, OverloadedStrings, TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 -- |
 -- Module: Analysis.Extra
