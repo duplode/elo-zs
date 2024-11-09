@@ -225,8 +225,10 @@ runForPub selRace aCut = testData dpopts
         AtRace ri (Map.intersectionWith (,) rtgs dds))
     & maybe last (flip (!!)) (selectedRace ppopts)
     & fmap @AtRace Map.toList
-    & distill & extract & fmap mkEntry
-    & sortBy (comparing (Down . creRating))
+    & distill & extract
+    -- Sort by rating before rounding down the ratings.
+    & sortBy (comparing (Down . fst . snd))
+    & fmap mkEntry
     where
     -- We might want to make these configurable eventually.
     dpopts = def
