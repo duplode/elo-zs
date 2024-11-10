@@ -119,11 +119,20 @@ topPDF gsh pos rs r t = (probeDensity *) . L.fold L.sum $
     probeDensity = density (orbitalDistr gsh r) t
     partials = Util.processCombsInt alg (length rs) . subtract 1
     alg = \case
+        -- If the combination is invalid because there aren't enough
+        -- opponets to pick, we have an impossible case.
         Util.LeafF Nothing -> 0
+        -- A choose-0 combination means the probe wins against all
+        -- others.
         Util.LeafF (Just rest) ->
             L.fold L.product ((wvs !) <$> IntSet.toList rest)
+        -- A choose-1 combination means the probe loses against the
+        -- chosen opponent, and wins against the remaining ones.
         Util.FlowerF a rest -> (lvs ! a)
             * L.fold L.product ((wvs !) <$> IntSet.toList rest)
+        -- Otherwise, the probe loses against the chosen opponent, and
+        -- the probabilities of the following combination branches are
+        -- incorporated.
         Util.BranchF a bs -> (lvs ! a) * L.fold L.sum bs
 
 -- | Like 'perfModelStrength', but for a top-N finish. Note that the

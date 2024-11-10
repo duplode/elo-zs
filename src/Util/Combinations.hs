@@ -103,6 +103,8 @@ processCombsInt alg n k = hylo alg combCoalg <$> seeds
         STr k tracker (a : as) ->
             BranchF a (STr (k-1) (IntSet.delete a tracker) <$> tails as)
 
+-- >$> processCombsInt (\case { LeafF Nothing -> []; LeafF _ -> []; FlowerF a _ -> [[a]]; BranchF a bs -> (a :) <$> concat bs }) 5 3
+
 test1 n = length $ combinations n 12 [1..]
 
 test4 :: Int -> Int -> [Integer]
