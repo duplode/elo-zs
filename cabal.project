@@ -1,0 +1,3 @@
+packages: .
+-- TODO: Figure out how to use this properly.
+extra-packages: gnuplot

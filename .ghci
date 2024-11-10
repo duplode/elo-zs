@@ -1,0 +1,30 @@
+:set -Wno-missing-home-modules
+:seti -XOverloadedStrings
+:seti -XLambdaCase
+
+import Data.Function
+import Data.Maybe
+import Control.Comonad
+import Control.Arrow
+import Data.Default.Class
+import qualified Control.Foldl as L
+import qualified Control.Scanl as LS
+import qualified Data.Map.Strict as Map
+import qualified Data.List.NonEmpty as N
+
+-- Use --build-depends on the command line to bring in gnuplot.
+import Graphics.Gnuplot.Simple
+
+-- Use --repl-no-load on the command line to avoid duplicate loading.
+:l Main
+:m + Analysis
+:m + Analysis.Common
+:m + Analysis.PerfModel
+:m + Orbital
+:m + Engine
+:m + Types
+:m + Tidying
+:m + Zak
+:m + Zak.Results
+
+-- testData def & LS.scan (allRatings def) & (personalHistory "dreadnaut" &&& personalHistory "Overdrijf") & (\(x,y) -> [x,y]) & map (map (fromIntegral . raceIx &&& extract)) & plotPaths []
