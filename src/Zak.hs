@@ -261,11 +261,11 @@ demoCurrentForPub :: Int -> Tab.Table String String String
 demoCurrentForPub = demoForPub Nothing
 
 -- | Table for historical chart generation.
-runForChart :: Int -> Maybe RaceIx -> [AtRace (Map.Map PipId Integer)]
+runForChart :: Maybe Int -> Maybe RaceIx -> [AtRace (Map.Map PipId Integer)]
 runForChart wnd selRace = testData dpopts
     & LS.scan (fmap @AtRace (fmap mkVal) . distill <$> allRatings eopts)
     & maybe id (take . (+1)) selRace
-    & takeEnd wnd
+    & maybe id takeEnd wnd
     where
     -- TODO: Make these configurable
     aCut = 4
@@ -279,10 +279,14 @@ runForChart wnd selRace = testData dpopts
     -- addPip ps = Set.union ps . Map.keysSet . extract
     -- pickPips = foldl' addPip Set.empty
 
-demoForChart' :: Int -> Maybe RaceIx -> Tab.Table String String String
-demoForChart' wnd selRace = dat
+demoForChart'
+    :: (RaceIx -> String)
+    -> Maybe Int
+    -> Maybe RaceIx
+    -> Tab.Table String String String
+demoForChart' trkFmt wnd selRace = dat
     & arrangeTable
-        (fmap (toZakLabel . raceIx))
+        (fmap (trkFmt . raceIx))
         (T.unpack <$> pipsList)
         (\arxs -> pipsList
             <&> (\p -> formatRetrieved $ Map.lookup p (extract arxs)))
@@ -297,7 +301,10 @@ demoForChart' wnd selRace = dat
     formatRetrieved = maybe "" show
 
 demoForChart :: Tab.Table String String String
-demoForChart = demoForChart' 13 Nothing
+demoForChart = demoForChart' toZakLabel (Just 13) Nothing
+
+demoFullHistory :: Tab.Table String String String
+demoFullHistory = demoForChart' (show . toZakPlotIx) Nothing Nothing
 
 -- | Current rating and past peak rating for racers active within the last
 -- 12 races.
