@@ -7,11 +7,10 @@
 module Zak where
 
 import Analysis
-import Analysis.Common (distillRatings, distillRatingsAssocList, isKeptRating
-    , isKeptByPP)
 import Engine
 import Types
-import Tidying
+import Tidying (DataPreparationOptions(..), PostProcessOptions(..)
+    , isKeptRating, isKeptByPP, distillRatings, distillRatingsAssocList)
 import Tabular
 import Zak.Misc
 import Zak.Results

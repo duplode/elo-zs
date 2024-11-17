@@ -9,7 +9,7 @@ import Types
 import Tidying
 import Engine
 import Weighing
-import Analysis.Common (foldRatingsPerRace, distillRatings)
+import Analysis.Common (foldRatingsPerRace)
 
 import qualified Data.Map.Strict as Map
 import qualified Control.Foldl as L

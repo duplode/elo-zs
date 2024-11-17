@@ -10,12 +10,18 @@ module Tidying
     , tidyRanks
       -- * Result post-processing
     , PostProcessOptions(..)
+    , isKeptByPP
+    , isKeptRating
+    , distillRatings
+    , distillRatingsAssocList
     ) where
 
 import Types
 
 import Data.Default.Class
 import qualified Data.List.NonEmpty as N
+import qualified Data.Map.Strict as Map
+import Control.Comonad
 
 -- | Preferences for how raw data is to be cleaned up.
 data DataPreparationOptions = DPOpts
@@ -79,4 +85,43 @@ instance Default PostProcessOptions where
         , provisionalCut = Just 5
         , selectedRace = Nothing
         }
+
+-- | Should this data be retained according to the post-processing
+-- criteria?
+isKeptByPP
+    :: (d -> RaceIx)       -- ^ Obtain last race index for the data.
+    -> (d -> Int)          -- ^ Obtain total entries for the data.
+    -> PostProcessOptions
+    -> RaceIx              -- ^ Current event index.
+    -> d
+    -> Bool
+isKeptByPP fDLri fDEntr ppopts ri d =
+    maybe True (\ac -> ri - fDLri d < ac) (activityCut ppopts)
+        && maybe True (\pc -> fDEntr d >= pc) (provisionalCut ppopts)
+
+-- | Should this rating be retained according to the post-processing
+-- criteria?
+isKeptRating
+    :: PostProcessOptions
+    -> RaceIx              -- ^ Current event index.
+    -> PipData
+    -> Bool
+isKeptRating = isKeptByPP lastRace entries
+
+-- | Apply the post-processing criteria to filter ratings (association list
+-- version).
+distillRatingsAssocList
+    :: PostProcessOptions
+    -> AtRace [(p, PipData)]
+    -> AtRace [(p, PipData)]
+distillRatingsAssocList ppopts = extend $
+    \(AtRace ri rtgs) -> filter (isKeptRating ppopts ri . snd) rtgs
+
+-- | Apply the post-processing criteria to filter ratings (Map version).
+distillRatings
+    :: PostProcessOptions
+    -> AtRace Ratings
+    -> AtRace Ratings
+distillRatings ppopts = extend $
+    \(AtRace ri rtgs) ->  Map.filter (isKeptRating ppopts ri) rtgs
 

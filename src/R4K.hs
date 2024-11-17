@@ -8,7 +8,6 @@
 module R4K where
 
 import Analysis
-import Analysis.Common (distillRatings)
 import Engine
 import Types
 import Tidying

@@ -5,13 +5,12 @@ module Analysis where
 import Types
 import Orbital (initialRating)
 import Engine
-import Tidying
+import Tidying (PostProcessOptions(..), isKeptByPP, distillRatings)
 import Util.Lone
 import Analysis.Common (foldThroughLone, foldRatingsPerRace
-    , isKeptByPP, foldRatingsAtSnapshot, distillRatings)
+    , foldRatingsAtSnapshot)
 import Analysis.PerfModel
 import Simulation
-import Weighing
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Merge.Strict as Map
@@ -313,3 +312,4 @@ ndcgSim eopts =
         (\(SP idcg acc) -> acc / idcg)
 
 -- >$> fmap ((!! 103) . fst) $ runSimM Nothing $ LS.scanM (simExpectedPos def def{simRuns = 100}) (testData def)
+
