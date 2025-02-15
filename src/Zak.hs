@@ -45,6 +45,7 @@ writeForPub = do
     demoHighestForPub & demoToHtml "testh.html"
     demoNearMissesForPub 12 4 & demoToHtml "testn.html"
     demoForChart & demoToCsv "teste.csv"
+    demoFullHistory & demoToCsv "history.csv"
 
 runHighest :: EloOptions -> [(PipId, AtRace Double)]
 runHighest eopts = testData def
