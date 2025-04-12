@@ -281,10 +281,11 @@ runForChart wnd selRace = testData dpopts
 
 demoForChart'
     :: (RaceIx -> String)
+    -> Bool
     -> Maybe Int
     -> Maybe RaceIx
     -> Tab.Table String String String
-demoForChart' trkFmt wnd selRace = dat
+demoForChart' trkFmt sortByRtg wnd selRace = dat
     & arrangeTable
         (fmap (trkFmt . raceIx))
         (T.unpack <$> pipsList)
@@ -293,18 +294,24 @@ demoForChart' trkFmt wnd selRace = dat
     where
     dat = runForChart wnd selRace
     latestRatings = foldl'
-        (\lts arxs -> Map.unionWith (flip const) lts (extract arxs))
+        (\lts arxs -> Map.unionWith
+            (\(AtRace rix _) (AtRace _ x') -> AtRace rix x')
+            lts
+            (codistributeL arxs))
         Map.empty
         dat
-    pipsList = fmap fst . sortBy (comparing (Down . snd))
+    comparison = if sortByRtg
+        then comparing (Down . extract . snd)
+        else comparing (raceIx . snd &&& fst)
+    pipsList = fmap fst . sortBy comparison
         . Map.toList $ latestRatings
     formatRetrieved = maybe "" show
 
 demoForChart :: Tab.Table String String String
-demoForChart = demoForChart' toZakLabel (Just 13) Nothing
+demoForChart = demoForChart' toZakLabel True (Just 13) Nothing
 
 demoFullHistory :: Tab.Table String String String
-demoFullHistory = demoForChart' (show . toZakPlotIx) Nothing Nothing
+demoFullHistory = demoForChart' (show . toZakPlotIx) True Nothing Nothing
 
 -- | Current rating and past peak rating for racers active within the last
 -- 12 races.
