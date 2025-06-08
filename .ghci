@@ -27,4 +27,16 @@ import Graphics.Gnuplot.Simple
 :m + Zak
 :m + Zak.Results
 
+-- Some example plots.
+
+-- Head-to-head comparison:
 -- testData def & LS.scan (allRatings def) & (personalHistory "dreadnaut" &&& personalHistory "Overdrijf") & (\(x,y) -> [x,y]) & map (map (fromIntegral . raceIx &&& extract)) & plotPaths []
+
+-- Rating of 6th place in the current ranking:
+-- testData def & LS.scan (allRatings def) & drop 23 . map (fromAtRace . fmap ((!! 5) . sortBy (comparing Down) . map (floor . rating) . Map.elems) . (extend $ \(AtRace ri xs) -> Map.filter (isKeptRating def{activityCut = Just 4} ri) xs)) & singleton & plotPaths []
+
+-- Global average, including all racers:
+-- testData def & LS.scan (allRatings def) & map (first fromIntegral . fromAtRace . meanRatingAtSnapshot) & singleton & plotPaths []
+
+-- Global average, including only racers on the historical ranking:
+-- testData def & LS.scan (allRatings def) & drop 4 & map (first fromIntegral . fromAtRace . meanRatingAtSnapshot . extend (\(AtRace ri xs) -> Map.filter (isKeptRating def ri) xs)) & singleton & plotPaths []
