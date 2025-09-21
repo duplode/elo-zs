@@ -133,3 +133,5 @@ zakParsedCsv = V.toList zakDecoded
 -- - EX2: Lap driven under an alternative ruleset, such as GAR.
 --
 -- - EX3: Lap driven with a clearly uncompetitive car.
+--
+-- - EX4: Miscellaneous extenuating circumstances.
