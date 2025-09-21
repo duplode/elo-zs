@@ -128,10 +128,10 @@ zakParsedCsv = V.toList zakDecoded
 --
 -- - MSC: CTG's 2014 races.
 --
+-- - MEC: Miscellaneous extenuating circumstances.
+--
 -- - EX1: Laptime beyond the "300% and 2 SD" cutoff.
 --
 -- - EX2: Lap driven under an alternative ruleset, such as GAR.
 --
 -- - EX3: Lap driven with a clearly uncompetitive car.
---
--- - EX4: Miscellaneous extenuating circumstances.
